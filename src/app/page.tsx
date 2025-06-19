@@ -4,7 +4,7 @@ import { useState } from "react";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { Sidebar } from "@/components/Sidebar";
 import { MainContent } from "@/components/MainContent";
-import { NowPlayingBarShadcn } from "@/components/NowPlayingBarShadcn";
+import { NowPlayingBarShadcn } from "@/components/NowPlayingBar";
 import { MobileHeader } from "@/components/MobileHeader";
 
 export default function Home() {

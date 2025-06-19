@@ -40,6 +40,11 @@ const PlayIcon = ({ className }: { className?: string }) => (
 	</svg>
 );
 
+// Pindahkan isPlaylistLink ke luar komponen agar tidak berubah setiap render
+const isPlaylistLink = (input: string) => {
+	return /playlist|list=/.test(input);
+};
+
 export const SearchPanel = () => {
 	const { connected, userContext, sendCommand } = useWebSocket();
 	const searchInputId = useId();
@@ -47,7 +52,7 @@ export const SearchPanel = () => {
 	const [searchResults, setSearchResults] = useState<Track[]>([]);
 	const [isSearching, setIsSearching] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [voiceChannelId, setVoiceChannelId] = useState("");
+	const [voiceChannelId] = useState("");
 
 	const isDisabled = !connected || !userContext.userId;
 
@@ -120,6 +125,18 @@ export const SearchPanel = () => {
 		],
 	);
 
+	const handleAddPlaylistToQueue = useCallback(() => {
+		if (!query.trim() || !isPlaylistLink(query.trim())) return;
+		handlePlayTrack({
+			title: "Playlist",
+			author: "",
+			duration: 0,
+			uri: query.trim(),
+			artwork: "",
+			isStream: false,
+		});
+	}, [query, handlePlayTrack]);
+
 	return (
 		<Card>
 			<CardHeader>
@@ -127,8 +144,8 @@ export const SearchPanel = () => {
 			</CardHeader>
 			<CardContent className="space-y-4">
 				<div className="space-y-2">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div className="space-y-2 col-span-2">
 							<Label htmlFor={searchInputId}>Search Query</Label>
 							<Input
 								id={searchInputId}
@@ -138,13 +155,22 @@ export const SearchPanel = () => {
 								onKeyDown={(e) => e.key === "Enter" && handleSearch()}
 							/>
 						</div>
-						<div className="flex items-end">
+						<div className="flex flex-col gap-2 justify-end">
 							<Button
 								onClick={handleSearch}
 								disabled={isDisabled || isSearching || !query.trim()}
 								className="w-full"
 							>
 								{isSearching ? "Searching..." : "Search"}
+							</Button>
+							<Button
+								onClick={handleAddPlaylistToQueue}
+								disabled={isDisabled || !isPlaylistLink(query.trim())}
+								variant="secondary"
+								className="w-full"
+								title="Add playlist to queue"
+							>
+								Add Playlist to Queue
 							</Button>
 						</div>
 					</div>

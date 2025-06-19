@@ -1,13 +1,14 @@
 "use client";
 
 import { ConnectionPanel } from "./ConnectionPanel";
-import { MusicControlsShadcn } from "./MusicControlsShadcn";
-import { MusicArtworkShadcn } from "./MusicArtworkShadcn";
+import { MusicControlsShadcn } from "./MusicControls";
+import { MusicArtworkShadcn } from "./MusicArtwork";
 import { SearchPanel } from "./SearchPanel";
 import { LogsPanel } from "./LogsPanel";
 import { DebugPanel } from "./DebugPanel";
 import { AutoUpdateControls } from "./AutoUpdateControls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlaylistList } from "./PlaylistList";
 
 interface MainContentProps {
 	activeTab: string;
@@ -91,8 +92,7 @@ export const MainContent: React.FC<MainContentProps> = ({ activeTab }) => {
 											Save your favorite songs
 										</p>
 										<div className="text-center py-8">
-											<div className="text-4xl mb-2">❤️</div>
-											<p className="text-muted-foreground">No favorites yet</p>
+											<PlaylistList />
 										</div>
 									</CardContent>
 								</Card>

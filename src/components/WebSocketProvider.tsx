@@ -8,6 +8,7 @@ import {
 	useCallback,
 } from "react";
 import type React from "react";
+import { useRef } from "react";
 
 interface UserContext {
 	guildId?: string;
@@ -77,6 +78,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 	const [logs, setLogs] = useState<string[]>([]);
 	const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
 	const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+	const lastConnectedUserId = useRef<string | undefined>(undefined);
 
 	const addLog = useCallback((message: string) => {
 		setLogs((prev) => [
@@ -128,15 +130,32 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		[ws, addLog],
 	);
 
+	// 1. disconnectWebSocketOnly
+	const disconnectWebSocketOnly = useCallback(() => {
+		if (ws) {
+			ws.close();
+			setWs(null);
+		}
+		setUserContext({});
+	}, [ws]);
+
+	// 2. connect
 	const connect = useCallback(
 		(userId?: string, guildId?: string) => {
+			// Only reconnect if userId is different from lastConnectedUserId
+			if (
+				lastConnectedUserId.current === userId &&
+				ws &&
+				ws.readyState === WebSocket.OPEN
+			) {
+				return;
+			}
+			lastConnectedUserId.current = userId;
 			if (ws && ws.readyState === WebSocket.OPEN) {
 				ws.close();
 			}
-
 			try {
 				const newWs = new WebSocket("ws://localhost:4000/ws");
-
 				newWs.onopen = () => {
 					setConnected(true);
 					addLog("Connected to WebSocket");
@@ -144,21 +163,17 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 					if (userId) {
 						newWs.send(JSON.stringify({ type: "user-connect", userId }));
 						addLog(`Sent user-connect for userId: ${userId}`);
-						// Set userId immediately so controls can work even if user-connect fails
 						setUserContext((prev) => ({ ...prev, userId }));
 					} else if (guildId) {
 						newWs.send(JSON.stringify({ type: "join", guildId }));
 						addLog(`Sent join for guildId: ${guildId}`);
-						// Set guildId immediately
 						setUserContext((prev) => ({ ...prev, guildId }));
 					}
 				};
-
 				newWs.onmessage = (event) => {
 					try {
 						const data = JSON.parse(event.data);
 						addLog(`Received: ${JSON.stringify(data)}`);
-
 						switch (data.type) {
 							case "user-connect":
 								if (data.success) {
@@ -177,7 +192,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 									);
 								}
 								break;
-
 							case "queue":
 								setPlayerState((prev) => ({
 									...prev,
@@ -185,7 +199,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 								}));
 								break;
 							case "status":
-								// Update complete player state from status response
 								setPlayerState((prev) => ({
 									...prev,
 									playing: data.playing ?? prev.playing,
@@ -197,7 +210,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 									`Player status updated: playing=${data.playing}, volume=${data.volume}`,
 								);
 								break;
-
 							case "volume":
 								if (typeof data.volume === "number") {
 									setPlayerState((prev) => ({
@@ -224,14 +236,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 									}
 								}
 								break;
-
-							// Handle pause/resume/skip/stop responses
 							case "pause":
 							case "resume":
 							case "skip":
 							case "stop":
 								if (data.success) {
-									// Request updated status after successful command
 									addLog(`${data.type} command successful`);
 									// The server should send updated status automatically
 								} else {
@@ -240,7 +249,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 									);
 								}
 								break;
-
 							default:
 								// Handle other message types
 								break;
@@ -268,17 +276,39 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		},
 		[ws, addLog],
 	);
-	const disconnect = useCallback(() => {
-		if (ws) {
-			ws.close();
-			setWs(null);
-			setUserContext({});
-		}
-	}, [ws]);
 
-	const toggleAutoUpdate = useCallback(() => {
-		setAutoUpdateEnabled((prev) => !prev);
-	}, []);
+	// 3. refreshUser
+	const refreshUser = useCallback(async () => {
+		try {
+			const res = await fetch("/api/auth/me");
+			if (res.ok) {
+				const data = await res.json();
+				if (data?.user?.id) {
+					setUserContext((prev) => ({ ...prev, userId: data.user.id }));
+					connect(data.user.id);
+					return;
+				}
+			}
+			if (lastConnectedUserId.current !== undefined) {
+				lastConnectedUserId.current = undefined;
+				disconnectWebSocketOnly();
+			}
+		} catch {
+			if (lastConnectedUserId.current !== undefined) {
+				lastConnectedUserId.current = undefined;
+				disconnectWebSocketOnly();
+			}
+		}
+	}, [connect, disconnectWebSocketOnly]);
+
+	const disconnect = useCallback(async () => {
+		try {
+			await fetch("/api/auth/discord", { method: "POST" });
+		} catch {}
+		disconnectWebSocketOnly();
+		refreshUser();
+	}, [disconnectWebSocketOnly, refreshUser]);
+
 	useEffect(() => {
 		return () => {
 			if (ws) {
@@ -306,7 +336,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		userContext.guildId,
 		requestStatusAndQueue,
 	]);
-	const value: WebSocketContextType = {
+	// Fix: add missing toggleAutoUpdate definition
+	const toggleAutoUpdate = useCallback(() => {
+		setAutoUpdateEnabled((prev) => !prev);
+	}, []);
+	// Expose a refreshUser function to re-fetch user info and reconnect
+	const value = {
 		ws,
 		connected,
 		userContext,
@@ -320,7 +355,51 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		clearLogs,
 		toggleAutoUpdate,
 		requestStatusAndQueue,
+		refreshUser,
 	};
+
+	// On mount, always call refreshUser
+	useEffect(() => {
+		refreshUser();
+	}, [refreshUser]);
+
+	// Poll /api/auth/me every 5 seconds to detect VC/guild changes and update WS
+	useEffect(() => {
+		const interval = setInterval(async () => {
+			try {
+				const res = await fetch("/api/auth/me");
+				if (res.ok) {
+					const data = await res.json();
+					const newUserId = data?.user?.id;
+					const newGuildId = data?.user?.primary_guild?.identity_guild_id;
+					const newVoiceChannelId = data?.user?.voice_channel_id;
+
+					const guildChanged =
+						newGuildId !== undefined && newGuildId !== userContext.guildId;
+					const vcChanged =
+						newVoiceChannelId !== undefined &&
+						newVoiceChannelId !== userContext.voiceChannelId;
+
+					if (newUserId && (guildChanged || vcChanged)) {
+						setUserContext((prev) => ({
+							...prev,
+							guildId: newGuildId,
+							voiceChannelId: newVoiceChannelId,
+						}));
+						if (ws && ws.readyState === WebSocket.OPEN) {
+							ws.send(
+								JSON.stringify({ type: "user-connect", userId: newUserId }),
+							);
+							addLog(
+								`Sent user-connect for userId: ${newUserId} (VC/guild changed)`,
+							);
+						}
+					}
+				}
+			} catch {}
+		}, 6000); // 6 seconds
+		return () => clearInterval(interval);
+	}, [ws, userContext.guildId, userContext.voiceChannelId, addLog]);
 
 	return (
 		<WebSocketContext.Provider value={value}>
