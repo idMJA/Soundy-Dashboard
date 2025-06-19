@@ -1,0 +1,330 @@
+"use client";
+
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useState,
+	useCallback,
+} from "react";
+import type React from "react";
+
+interface UserContext {
+	guildId?: string;
+	voiceChannelId?: string;
+	userId?: string;
+}
+
+interface Track {
+	title: string;
+	author: string;
+	duration: number;
+	uri?: string;
+	artwork?: string;
+	isStream?: boolean;
+	position?: number;
+}
+
+interface PlayerState {
+	playing: boolean;
+	track?: Track;
+	queue: Track[];
+	volume: number;
+}
+
+interface WebSocketCommand {
+	type: string;
+	[key: string]: unknown;
+}
+
+interface WebSocketContextType {
+	ws: WebSocket | null;
+	connected: boolean;
+	userContext: UserContext;
+	playerState: PlayerState;
+	logs: string[];
+	autoUpdateEnabled: boolean;
+	lastUpdateTime: Date | null;
+	connect: (userId?: string, guildId?: string) => void;
+	disconnect: () => void;
+	sendCommand: (command: WebSocketCommand) => void;
+	clearLogs: () => void;
+	toggleAutoUpdate: () => void;
+	requestStatusAndQueue: () => void;
+}
+
+const WebSocketContext = createContext<WebSocketContextType | null>(null);
+
+export const useWebSocket = () => {
+	const context = useContext(WebSocketContext);
+	if (!context) {
+		throw new Error("useWebSocket must be used within a WebSocketProvider");
+	}
+	return context;
+};
+
+export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
+	children,
+}) => {
+	const [ws, setWs] = useState<WebSocket | null>(null);
+	const [connected, setConnected] = useState(false);
+	const [userContext, setUserContext] = useState<UserContext>({});
+	const [playerState, setPlayerState] = useState<PlayerState>({
+		playing: false,
+		queue: [],
+		volume: 50,
+	});
+	const [logs, setLogs] = useState<string[]>([]);
+	const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true);
+	const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+
+	const addLog = useCallback((message: string) => {
+		setLogs((prev) => [
+			...prev.slice(-49),
+			`${new Date().toLocaleTimeString()}: ${message}`,
+		]);
+	}, []);
+	const clearLogs = useCallback(() => {
+		setLogs([]);
+	}, []);
+	// Function to request current status and queue
+	const requestStatusAndQueue = useCallback(() => {
+		if (ws && ws.readyState === WebSocket.OPEN && userContext.guildId) {
+			setLastUpdateTime(new Date());
+
+			// Request status
+			ws.send(JSON.stringify({ type: "status", guildId: userContext.guildId }));
+
+			// Request queue if we have userId
+			if (userContext.userId) {
+				const queueCommand: Record<string, unknown> = {
+					type: "queue",
+					userId: userContext.userId,
+				};
+				if (userContext.guildId) queueCommand.guildId = userContext.guildId;
+				ws.send(JSON.stringify(queueCommand));
+			}
+		}
+	}, [ws, userContext.guildId, userContext.userId]);
+	const sendCommand = useCallback(
+		(command: WebSocketCommand) => {
+			console.log("WebSocket sendCommand called:", {
+				command,
+				wsState: ws?.readyState,
+				connected: ws && ws.readyState === WebSocket.OPEN,
+			});
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify(command));
+				addLog(`Sent: ${JSON.stringify(command)}`);
+				console.log("Command sent successfully");
+			} else {
+				addLog("WebSocket not connected");
+				console.log("WebSocket not ready:", {
+					ws: !!ws,
+					readyState: ws?.readyState,
+				});
+			}
+		},
+		[ws, addLog],
+	);
+
+	const connect = useCallback(
+		(userId?: string, guildId?: string) => {
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.close();
+			}
+
+			try {
+				const newWs = new WebSocket("ws://localhost:4000/ws");
+
+				newWs.onopen = () => {
+					setConnected(true);
+					addLog("Connected to WebSocket");
+					setUserContext({});
+					if (userId) {
+						newWs.send(JSON.stringify({ type: "user-connect", userId }));
+						addLog(`Sent user-connect for userId: ${userId}`);
+						// Set userId immediately so controls can work even if user-connect fails
+						setUserContext((prev) => ({ ...prev, userId }));
+					} else if (guildId) {
+						newWs.send(JSON.stringify({ type: "join", guildId }));
+						addLog(`Sent join for guildId: ${guildId}`);
+						// Set guildId immediately
+						setUserContext((prev) => ({ ...prev, guildId }));
+					}
+				};
+
+				newWs.onmessage = (event) => {
+					try {
+						const data = JSON.parse(event.data);
+						addLog(`Received: ${JSON.stringify(data)}`);
+
+						switch (data.type) {
+							case "user-connect":
+								if (data.success) {
+									setUserContext((prev) => ({
+										...prev, // Keep existing userId
+										guildId: data.guildId,
+										voiceChannelId: data.voiceChannelId,
+										userId: data.userId || prev.userId,
+									}));
+									addLog(
+										`User context updated: Guild ${data.guildId}, Channel ${data.voiceChannelId}`,
+									);
+								} else {
+									addLog(
+										"User not found in any voice channel with active player (but you can still send commands)",
+									);
+								}
+								break;
+
+							case "queue":
+								setPlayerState((prev) => ({
+									...prev,
+									queue: data.queue || [],
+								}));
+								break;
+							case "status":
+								// Update complete player state from status response
+								setPlayerState((prev) => ({
+									...prev,
+									playing: data.playing ?? prev.playing,
+									volume: data.volume ?? prev.volume,
+									track: data.current ?? prev.track,
+									queue: data.queue ?? prev.queue,
+								}));
+								addLog(
+									`Player status updated: playing=${data.playing}, volume=${data.volume}`,
+								);
+								break;
+
+							case "volume":
+								if (typeof data.volume === "number") {
+									setPlayerState((prev) => ({
+										...prev,
+										volume: data.volume,
+									}));
+								}
+								break;
+							case "user-status":
+								if (data.found === false) {
+									addLog("User tidak ditemukan di voice channel manapun");
+								} else {
+									addLog(
+										`User ditemukan di guild: ${data.guildId}, channel: ${data.voiceChannelId}`,
+									);
+									if (data.player) {
+										setPlayerState((prev) => ({
+											...prev,
+											playing: data.player.playing ?? prev.playing,
+											track: data.player.track ?? prev.track,
+											volume: data.player.volume ?? prev.volume,
+											queue: data.player.queue ?? prev.queue,
+										}));
+									}
+								}
+								break;
+
+							// Handle pause/resume/skip/stop responses
+							case "pause":
+							case "resume":
+							case "skip":
+							case "stop":
+								if (data.success) {
+									// Request updated status after successful command
+									addLog(`${data.type} command successful`);
+									// The server should send updated status automatically
+								} else {
+									addLog(
+										`${data.type} command failed: ${data.error || "Unknown error"}`,
+									);
+								}
+								break;
+
+							default:
+								// Handle other message types
+								break;
+						}
+					} catch {
+						addLog(`Received: ${event.data}`);
+					}
+				};
+
+				newWs.onclose = () => {
+					setConnected(false);
+					addLog("Disconnected from WebSocket");
+				};
+
+				newWs.onerror = (error) => {
+					addLog("WebSocket error occurred");
+					console.error("WebSocket error:", error);
+				};
+
+				setWs(newWs);
+			} catch (error) {
+				addLog("Failed to connect to WebSocket");
+				console.error("Connection error:", error);
+			}
+		},
+		[ws, addLog],
+	);
+	const disconnect = useCallback(() => {
+		if (ws) {
+			ws.close();
+			setWs(null);
+			setUserContext({});
+		}
+	}, [ws]);
+
+	const toggleAutoUpdate = useCallback(() => {
+		setAutoUpdateEnabled((prev) => !prev);
+	}, []);
+	useEffect(() => {
+		return () => {
+			if (ws) {
+				ws.close();
+			}
+		};
+	}, [ws]);
+
+	// Auto-update status and queue every 1 second
+	useEffect(() => {
+		if (!autoUpdateEnabled || !connected || !userContext.guildId) {
+			return;
+		}
+
+		const interval = setInterval(() => {
+			requestStatusAndQueue();
+		}, 1000);
+
+		return () => {
+			clearInterval(interval);
+		};
+	}, [
+		autoUpdateEnabled,
+		connected,
+		userContext.guildId,
+		requestStatusAndQueue,
+	]);
+	const value: WebSocketContextType = {
+		ws,
+		connected,
+		userContext,
+		playerState,
+		logs,
+		autoUpdateEnabled,
+		lastUpdateTime,
+		connect,
+		disconnect,
+		sendCommand,
+		clearLogs,
+		toggleAutoUpdate,
+		requestStatusAndQueue,
+	};
+
+	return (
+		<WebSocketContext.Provider value={value}>
+			{children}
+		</WebSocketContext.Provider>
+	);
+};
