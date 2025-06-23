@@ -79,28 +79,27 @@ export const MusicArtworkShadcn: React.FC<MusicArtworkProps> = ({
 				)}
 
 				{error ? (
-					<>
-						<div className="absolute inset-0 bg-muted flex items-center justify-center">
-							<div className="text-center">
-								<div className="text-4xl mb-2">🎵</div>
-								<p className="text-muted-foreground text-sm">
-									Image failed to load
-								</p>
-							</div>
+					<div className="absolute inset-0 bg-muted flex items-center justify-center">
+						<div className="text-center">
+							<div className="text-4xl mb-2">🎵</div>
+							<p className="text-muted-foreground text-sm">
+								Image failed to load
+							</p>
 						</div>
-						<Image
-							src={currentArtwork}
-							alt="Album artwork"
-							fill
-							sizes="100vw"
-							className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
-							onLoad={handleImageLoad}
-							onError={handleImageError}
-							priority
-							unoptimized
-						/>
-					</>
-				) : null}
+					</div>
+				) : (
+					<Image
+						src={currentArtwork}
+						alt="Album artwork"
+						fill
+						sizes="100vw"
+						className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
+						onLoad={handleImageLoad}
+						onError={handleImageError}
+						priority
+						unoptimized
+					/>
+				)}
 
 				{/* Play/Pause indicator */}
 				{playerState.track && (

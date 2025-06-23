@@ -155,24 +155,27 @@ export const NowPlayingBarShadcn = () => {
 		: 0;
 
 	return (
-		<div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-background border-t p-4">
-			<div className="flex items-center justify-between gap-4">
+		<div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-card border-t border-border backdrop-blur-md">
+			<div className="flex items-center justify-between p-4 gap-4">
 				{/* Track Info */}
-				<div className="flex items-center space-x-3">
+				<div className="flex items-center space-x-3 flex-1 min-w-0">
 					{track.artwork && (
-						<Image
-							src={track.artwork}
-							alt="Album artwork"
-							width={56}
-							height={56}
-							className="w-14 h-14 rounded-lg object-cover hidden sm:block"
-						/>
+						<div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+							<Image
+								src={track.artwork}
+								alt={`${track.title} artwork`}
+								width={48}
+								height={48}
+								className="w-full h-full object-cover"
+								unoptimized
+							/>
+						</div>
 					)}
-					<div className="min-w-0">
-						<h4 className="font-medium truncate text-sm sm:text-base">
+					<div className="min-w-0 flex-1">
+						<h4 className="font-medium text-card-foreground truncate text-sm">
 							{track.title}
 						</h4>
-						<p className="text-muted-foreground text-xs sm:text-sm truncate">
+						<p className="text-xs text-muted-foreground truncate">
 							{track.author}
 						</p>
 					</div>

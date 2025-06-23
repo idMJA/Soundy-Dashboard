@@ -1,279 +1,725 @@
 "use client";
 
-import { useState, useCallback, useId } from "react";
-import { useWebSocket } from "./WebSocketProvider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useRef } from "react";
+import {
+	Search,
+	X,
+	Play,
+	Plus,
+	Heart,
+	MoreHorizontal,
+	Clock,
+	TrendingUp,
+	Music,
+	Coffee,
+	Zap,
+	Brain,
+	ExternalLink,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import Image from "next/image";
-
-interface Track {
-	title: string;
-	author: string;
-	duration: number;
-	uri: string;
-	artwork: string;
-	isStream: boolean;
-}
-
-interface SearchResponse {
-	tracks: Track[];
-}
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import { useWebSocket } from "./WebSocketProvider";
 
 interface WebSocketCommand {
 	type: string;
 	[key: string]: unknown;
 }
 
-const PlayIcon = ({ className }: { className?: string }) => (
-	<svg
-		className={className || "w-4 h-4"}
-		fill="currentColor"
-		viewBox="0 0 24 24"
-		aria-label="Play"
-	>
-		<title>Play</title>
-		<path d="m7.25 6.693 8.5 4.904a.5.5 0 0 1 0 .866l-8.5 4.904A.5.5 0 0 1 6.5 16.9V7.1a.5.5 0 0 1 .75-.433Z" />
-	</svg>
-);
+interface SearchResult {
+	id: string;
+	title: string;
+	artist: string;
+	album?: string;
+	duration?: string;
+	artwork?: string;
+	type: "song" | "playlist" | "artist" | "album";
+	isPlaying?: boolean;
+	url?: string; // YouTube URL or other source
+	uri?: string; // Track URI for playing
+}
 
-// Pindahkan isPlaylistLink ke luar komponen agar tidak berubah setiap render
-const isPlaylistLink = (input: string) => {
-	return /playlist|list=/.test(input);
-};
+interface SearchCategory {
+	id: string;
+	name: string;
+	icon: React.ReactNode;
+	color: string;
+	description: string;
+	searchQuery?: string; // Predefined search terms for categories
+}
 
-export const SearchPanel = () => {
+const searchCategories: SearchCategory[] = [
+	{
+		id: "trending",
+		name: "Trending",
+		icon: <TrendingUp className="w-6 h-6" />,
+		color: "bg-gradient-to-br from-pink-500 to-rose-500",
+		description: "What's hot right now",
+		searchQuery: "trending music 2024",
+	},
+	{
+		id: "chill",
+		name: "Chill",
+		icon: <Coffee className="w-6 h-6" />,
+		color: "bg-gradient-to-br from-blue-500 to-cyan-500",
+		description: "Relax and unwind",
+		searchQuery: "chill lofi ambient relaxing music",
+	},
+	{
+		id: "party",
+		name: "Party",
+		icon: <Zap className="w-6 h-6" />,
+		color: "bg-gradient-to-br from-purple-500 to-indigo-500",
+		description: "Turn up the energy",
+		searchQuery: "party dance electronic music",
+	},
+	{
+		id: "focus",
+		name: "Focus",
+		icon: <Brain className="w-6 h-6" />,
+		color: "bg-gradient-to-br from-green-500 to-emerald-500",
+		description: "Deep concentration",
+		searchQuery: "focus study concentration instrumental music",
+	},
+];
+
+const recentSearches = [
+	"Lo-fi Hip Hop",
+	"Synthwave",
+	"Indie Rock",
+	"Jazz Fusion",
+	"Electronic Chill",
+];
+
+export const SearchPanel: React.FC = () => {
 	const { connected, userContext, sendCommand } = useWebSocket();
-	const searchInputId = useId();
 	const [query, setQuery] = useState("");
-	const [searchResults, setSearchResults] = useState<Track[]>([]);
-	const [isSearching, setIsSearching] = useState(false);
+	const [results, setResults] = useState<SearchResult[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [showSuggestions, setShowSuggestions] = useState(false);
+	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [voiceChannelId] = useState("");
+	const inputRef = useRef<HTMLInputElement>(null);
+	// Debounced search effect
+	useEffect(() => {
+		const formatDurationInternal = (ms: number): string => {
+			const seconds = Math.floor(ms / 1000);
+			const minutes = Math.floor(seconds / 60);
+			const remainingSeconds = seconds % 60;
+			return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+		};
 
-	const isDisabled = !connected || !userContext.userId;
+		const performSearchInternal = async (searchQuery: string) => {
+			if (!searchQuery.trim()) {
+				setResults([]);
+				return;
+			}
 
-	const formatDuration = (ms: number) => {
-		const seconds = Math.floor(ms / 1000);
-		const minutes = Math.floor(seconds / 60);
-		const remainingSeconds = seconds % 60;
-		return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-	};
+			setIsLoading(true);
+			setError(null);
 
-	const handleSearch = useCallback(async () => {
-		if (!query.trim()) return;
-		setIsSearching(true);
-		setError(null);
-		try {
-			const encodedQuery = encodeURIComponent(query.trim());
-			const response = await fetch(
-				`http://localhost:4000/api/music/search?q=${encodedQuery}`,
-			);
-			if (!response.ok)
-				throw new Error(`Search failed: ${response.statusText}`);
-			const data: SearchResponse = await response.json();
-			setSearchResults(data.tracks);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Search failed");
-			setSearchResults([]);
-		} finally {
-			setIsSearching(false);
+			try {
+				// Use the correct API endpoint like in the example
+				const response = await fetch(
+					`http://localhost:4000/api/music/search?q=${encodeURIComponent(searchQuery)}`,
+				);
+
+				if (!response.ok) {
+					throw new Error(`Search failed: ${response.statusText}`);
+				}
+
+				const data = await response.json();
+
+				// Transform the API response to our SearchResult format
+				// The API returns { tracks: Track[] } format
+				interface ApiTrack {
+					title: string;
+					author: string;
+					duration: number; // in milliseconds
+					uri: string;
+					artwork: string;
+					isStream: boolean;
+				}
+
+				const searchResults: SearchResult[] = (data.tracks || []).map(
+					(track: ApiTrack, index: number) => ({
+						id: track.uri || `result-${index}`,
+						title: track.title || "Unknown Title",
+						artist: track.author || "Unknown Artist",
+						album: undefined, // API doesn't provide album info
+						duration: formatDurationInternal(track.duration),
+						artwork: track.artwork,
+						type: "song" as const,
+						url: track.uri,
+						uri: track.uri,
+					}),
+				);
+
+				setResults(searchResults);
+			} catch (err) {
+				console.error("Search error:", err);
+				setError(err instanceof Error ? err.message : "Search failed");
+				setResults([]);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		if (query.length > 2) {
+			const timer = setTimeout(() => {
+				performSearchInternal(query);
+			}, 500);
+			return () => clearTimeout(timer);
+		} else {
+			setResults([]);
+			setError(null);
 		}
 	}, [query]);
 
-	const handlePlayTrack = useCallback(
-		(track: Track) => {
-			const guildId = userContext.guildId;
-			const channelId = userContext.voiceChannelId || voiceChannelId;
-			const userId = userContext.userId;
+	const handleCategoryClick = (categoryId: string) => {
+		const category = searchCategories.find((c) => c.id === categoryId);
+		setSelectedCategory(categoryId);
+		if (category?.searchQuery) {
+			setQuery(category.searchQuery);
+		}
+	};
+	const handleSearch = (searchTerm: string) => {
+		setQuery(searchTerm);
+		setShowSuggestions(false);
+	};
 
+	const clearSearch = () => {
+		setQuery("");
+		setResults([]);
+		setSelectedCategory(null);
+		setError(null);
+		inputRef.current?.focus();
+	};
+	const handlePlay = (result: SearchResult) => {
+		if (!connected || !userContext.userId) {
+			console.warn("Not connected or no user ID available");
+			return;
+		}
+
+		const guildId = userContext.guildId;
+		const channelId = userContext.voiceChannelId;
+		const userId = userContext.userId;
+
+		// WAJIB: Kirim voiceChannelId jika guildId ada
+		if (userId && ((guildId && channelId) || !guildId)) {
+			const command: Record<string, unknown> = {
+				type: "play",
+				query: result.uri || result.url || `${result.title} ${result.artist}`,
+				userId,
+			};
+			if (guildId) command.guildId = guildId;
+			if (channelId) command.voiceChannelId = channelId;
+			sendCommand(command as WebSocketCommand);
+		} else {
 			console.log(
-				"Playing track:",
-				track.title,
-				"by",
-				track.author,
-				"URI:",
-				track.uri,
+				"Missing required fields for play. Need userId and either (guildId+channelId) or just userId",
 			);
+		}
+	};
 
-			if (userId && ((guildId && channelId) || !guildId)) {
-				const command: Record<string, unknown> = {
-					type: "play",
-					query: track.uri,
-					userId,
-				};
+	const handlePlayDirect = (searchQuery: string) => {
+		if (!connected || !userContext.userId) {
+			console.warn("Not connected or no user ID available");
+			return;
+		}
 
-				if (guildId) command.guildId = guildId;
-				if (channelId) command.voiceChannelId = channelId;
+		const guildId = userContext.guildId;
+		const channelId = userContext.voiceChannelId;
+		const userId = userContext.userId;
 
-				sendCommand(command as WebSocketCommand);
-			} else {
-				console.log(
-					"Missing required fields for play. Need userId and either (guildId+channelId) or just userId",
-				);
+		// WAJIB: Kirim voiceChannelId jika guildId ada
+		if (userId && ((guildId && channelId) || !guildId)) {
+			const command: Record<string, unknown> = {
+				type: "play",
+				query: searchQuery,
+				userId,
+			};
+			if (guildId) command.guildId = guildId;
+			if (channelId) command.voiceChannelId = channelId;
+			sendCommand(command as WebSocketCommand);
+		} else {
+			console.log(
+				"Missing required fields for play. Need userId and either (guildId+channelId) or just userId",
+			);
+		}
+	};
+
+	const handleAddToPlaylist = (result: SearchResult) => {
+		if (!connected || !userContext.userId) {
+			console.warn("Not connected or no user ID available");
+			return;
+		}
+
+		console.log("Adding to playlist:", result.title, "by", result.artist);
+
+		// For now, just add to queue using the same logic as play
+		const guildId = userContext.guildId;
+		const channelId = userContext.voiceChannelId;
+		const userId = userContext.userId;
+
+		if (userId && ((guildId && channelId) || !guildId)) {
+			const command: Record<string, unknown> = {
+				type: "add", // or 'queue' depending on the API
+				query: result.uri || result.url || `${result.title} ${result.artist}`,
+				userId,
+			};
+
+			if (guildId) command.guildId = guildId;
+			if (channelId) command.voiceChannelId = channelId;
+
+			sendCommand(command as WebSocketCommand);
+		}
+	};
+	const handleLike = (result: SearchResult) => {
+		console.log("Liking:", result.title, "by", result.artist);
+		// Implement like functionality - could save to favorites list
+	};
+
+	const handleOpenInBrowser = (result: SearchResult) => {
+		if (result.url) {
+			window.open(result.url, "_blank");
+		}
+	};
+
+	// Move formatDuration inside useEffect to avoid dependency issues
+	// Debounced search effect
+	useEffect(() => {
+		const formatDurationInternal = (ms: number): string => {
+			const seconds = Math.floor(ms / 1000);
+			const minutes = Math.floor(seconds / 60);
+			const remainingSeconds = seconds % 60;
+			return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+		};
+
+		const performSearchInternal = async (searchQuery: string) => {
+			if (!searchQuery.trim()) {
+				setResults([]);
+				return;
 			}
-		},
-		[
-			userContext.guildId,
-			userContext.userId,
-			userContext.voiceChannelId,
-			voiceChannelId,
-			sendCommand,
-		],
-	);
 
-	const handleAddPlaylistToQueue = useCallback(() => {
-		if (!query.trim() || !isPlaylistLink(query.trim())) return;
-		handlePlayTrack({
-			title: "Playlist",
-			author: "",
-			duration: 0,
-			uri: query.trim(),
-			artwork: "",
-			isStream: false,
-		});
-	}, [query, handlePlayTrack]);
+			setIsLoading(true);
+			setError(null);
+
+			try {
+				// Use the correct API endpoint like in the example
+				const response = await fetch(
+					`http://localhost:4000/api/music/search?q=${encodeURIComponent(searchQuery)}`,
+				);
+
+				if (!response.ok) {
+					throw new Error(`Search failed: ${response.statusText}`);
+				}
+
+				const data = await response.json();
+
+				// Transform the API response to our SearchResult format
+				// The API returns { tracks: Track[] } format
+				interface ApiTrack {
+					title: string;
+					author: string;
+					duration: number; // in milliseconds
+					uri: string;
+					artwork: string;
+					isStream: boolean;
+				}
+
+				const searchResults: SearchResult[] = (data.tracks || []).map(
+					(track: ApiTrack, index: number) => ({
+						id: track.uri || `result-${index}`,
+						title: track.title || "Unknown Title",
+						artist: track.author || "Unknown Artist",
+						album: undefined, // API doesn't provide album info
+						duration: formatDurationInternal(track.duration),
+						artwork: track.artwork,
+						type: "song" as const,
+						url: track.uri,
+						uri: track.uri,
+					}),
+				);
+
+				setResults(searchResults);
+			} catch (err) {
+				console.error("Search error:", err);
+				setError(err instanceof Error ? err.message : "Search failed");
+				setResults([]);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		if (query.length > 2) {
+			const timer = setTimeout(() => {
+				performSearchInternal(query);
+			}, 500);
+			return () => clearTimeout(timer);
+		} else {
+			setResults([]);
+			setError(null);
+		}
+	}, [query]);
+
+	if (!connected) {
+		return (
+			<div className="flex flex-col items-center justify-center h-96 space-y-4">
+				<div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+					<Music className="w-8 h-8 text-muted-foreground" />
+				</div>
+				<div className="text-center space-y-2">
+					<h3 className="text-lg font-semibold">Not Connected</h3>
+					<p className="text-sm text-muted-foreground">
+						Connect to your music service to start searching
+					</p>
+				</div>
+				<Button>Connect Now</Button>
+			</div>
+		);
+	}
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>🔍 Search Music</CardTitle>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				<div className="space-y-2">
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div className="space-y-2 col-span-2">
-							<Label htmlFor={searchInputId}>Search Query</Label>
-							<Input
-								id={searchInputId}
-								placeholder="Song name, artist, or Spotify/YouTube URL..."
-								value={query}
-								onChange={(e) => setQuery(e.target.value)}
-								onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-							/>
-						</div>
-						<div className="flex flex-col gap-2 justify-end">
-							<Button
-								onClick={handleSearch}
-								disabled={isDisabled || isSearching || !query.trim()}
-								className="w-full"
-							>
-								{isSearching ? "Searching..." : "Search"}
-							</Button>
-							<Button
-								onClick={handleAddPlaylistToQueue}
-								disabled={isDisabled || !isPlaylistLink(query.trim())}
-								variant="secondary"
-								className="w-full"
-								title="Add playlist to queue"
-							>
-								Add Playlist to Queue
-							</Button>
-						</div>
-					</div>
+		<div className="space-y-6">
+			{/* Search Header */}
+			<div className="space-y-4">
+				<div className="flex items-center justify-between">
+					<h1 className="text-3xl font-bold">Search</h1>
+					{selectedCategory && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setSelectedCategory(null)}
+							className="text-muted-foreground hover:text-foreground"
+						>
+							<X className="w-4 h-4 mr-1" />
+							Clear Filter
+						</Button>
+					)}
 				</div>
-				<div className="flex gap-2 mt-2"></div>
 
-				{error && (
-					<div className="text-red-500 text-sm p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-						{error}
-					</div>
-				)}
-
-				{isSearching && (
-					<div className="space-y-3">
-						{[1, 2, 3].map((i) => (
-							<div key={i} className="flex items-center space-x-3">
-								<Skeleton className="h-12 w-12 rounded-lg" />
-								<div className="flex-1 space-y-2">
-									<Skeleton className="h-4 w-3/4" />
-									<Skeleton className="h-3 w-1/2" />
-								</div>
-								<Skeleton className="h-8 w-16" />
-							</div>
-						))}
-					</div>
-				)}
-
-				{searchResults.length > 0 && !isSearching && (
-					<div className="space-y-3 max-h-96 overflow-y-auto">
-						{searchResults.map((track, index) => (
-							<div
-								key={`${track.uri}-${index}`}
-								className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+				{/* Search Bar */}
+				<div className="relative">
+					<div className="relative">
+						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+						<Input
+							ref={inputRef}
+							placeholder="What do you want to listen to?"
+							value={query}
+							onChange={(e) => setQuery(e.target.value)}
+							onFocus={() => setShowSuggestions(true)}
+							className="pl-10 pr-10 h-12 text-base bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:bg-background"
+						/>
+						{query && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={clearSearch}
+								className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
 							>
-								{track.artwork && (
-									<Image
-										src={track.artwork}
-										alt={`${track.title} artwork`}
-										width={48}
-										height={48}
-										className="w-12 h-12 rounded-lg object-cover"
-									/>
-								)}
-								<div className="flex-1 min-w-0">
-									<h4 className="font-medium truncate">{track.title}</h4>
-									<p className="text-sm text-muted-foreground truncate">
-										{track.author}
-									</p>
-									<div className="flex items-center gap-2 mt-1">
-										<Badge variant="outline" className="text-xs">
-											{formatDuration(track.duration)}
-										</Badge>
-										{track.isStream && (
-											<Badge variant="secondary" className="text-xs">
-												Stream
-											</Badge>
-										)}
+								<X className="w-4 h-4" />
+							</Button>
+						)}
+					</div>
+
+					{/* Search Suggestions Dropdown */}
+					{showSuggestions && query.length === 0 && (
+						<Card className="absolute top-full left-0 right-0 mt-2 z-10 shadow-lg border-border/50">
+							<CardContent className="p-4 space-y-3">
+								<div className="flex items-center justify-between">
+									<h4 className="text-sm font-medium">Recent searches</h4>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => setShowSuggestions(false)}
+										className="h-6 w-6 p-0"
+									>
+										<X className="w-3 h-3" />
+									</Button>
+								</div>{" "}
+								<div className="space-y-1">
+									{recentSearches.map((search) => (
+										<Button
+											key={search}
+											variant="ghost"
+											onClick={() => handleSearch(search)}
+											className="flex items-center justify-start space-x-3 p-2 h-auto w-full hover:bg-muted rounded-md"
+										>
+											<Clock className="w-4 h-4 text-muted-foreground" />
+											<span className="text-sm">{search}</span>
+										</Button>
+									))}
+								</div>
+							</CardContent>
+						</Card>
+					)}
+				</div>
+			</div>{" "}
+			{/* Browse Categories */}
+			{!query && !selectedCategory && (
+				<div className="space-y-4">
+					<div className="flex items-center justify-between">
+						<h2 className="text-xl font-semibold">Browse all</h2>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handlePlayDirect("trending popular music")}
+							disabled={!connected || !userContext.userId}
+							className="h-8"
+						>
+							<Play className="w-4 h-4 mr-1" />
+							Play Popular
+						</Button>
+					</div>
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+						{searchCategories.map((category) => (
+							<Card
+								key={category.id}
+								className="relative overflow-hidden cursor-pointer group hover:scale-105 transition-all duration-200 border-0"
+							>
+								<div
+									className={cn(
+										"h-32 p-4 flex flex-col justify-between text-white relative",
+										category.color,
+									)}
+								>
+									<div className="space-y-1">
+										<h3 className="font-bold text-lg">{category.name}</h3>
+										<p className="text-sm text-white/80">
+											{category.description}
+										</p>
+									</div>
+									<div className="absolute bottom-4 right-4 opacity-60 group-hover:opacity-100 transition-opacity">
+										{category.icon}
+									</div>
+									<div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+
+									{/* Category Action Buttons */}
+									<div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+										<div className="flex space-x-2">
+											<Button
+												size="sm"
+												variant="secondary"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleCategoryClick(category.id);
+												}}
+												className="h-8 px-3 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border-white/30"
+											>
+												<Search className="w-3 h-3 mr-1" />
+												Browse
+											</Button>
+											<Button
+												size="sm"
+												onClick={(e) => {
+													e.stopPropagation();
+													handlePlayDirect(
+														category.searchQuery || category.name,
+													);
+												}}
+												disabled={!connected || !userContext.userId}
+												className="h-8 px-3 bg-primary/80 backdrop-blur-sm text-white hover:bg-primary border-primary/30"
+											>
+												<Play className="w-3 h-3 mr-1" />
+												Play
+											</Button>
+										</div>
 									</div>
 								</div>
-								<div className="flex gap-2 shrink-0">
-									<Button
-										onClick={() => handlePlayTrack(track)}
-										disabled={isDisabled}
-										size="sm"
-										className="flex items-center gap-1"
-									>
-										<PlayIcon className="w-3 h-3" />
-										Play
-									</Button>
-								</div>
-							</div>
+							</Card>
 						))}
 					</div>
-				)}
-
-				{query && searchResults.length === 0 && !isSearching && !error && (
-					<div className="text-center py-8 text-muted-foreground">
-						<div className="text-4xl mb-2">🎵</div>
-						<p>No results found for "{query}"</p>
-						<p className="text-xs mt-2">
-							Try different keywords or paste a Spotify/YouTube link directly
-						</p>
+				</div>
+			)}
+			{/* Search Results */}
+			{(query || selectedCategory) && (
+				<div className="space-y-4">
+					{" "}
+					<div className="flex items-center justify-between">
+						<h2 className="text-xl font-semibold">
+							{selectedCategory
+								? `${searchCategories.find((c) => c.id === selectedCategory)?.name} Music`
+								: `Results for "${query}"`}
+						</h2>
+						<div className="flex items-center space-x-2">
+							{query && (
+								<Button
+									onClick={() => handlePlayDirect(query)}
+									className="h-8 px-3"
+									disabled={!connected || !userContext.userId}
+								>
+									<Play className="w-4 h-4 mr-1" />
+									Play Now
+								</Button>
+							)}
+							{results.length > 0 && (
+								<Badge variant="secondary" className="text-xs">
+									{results.length} result{results.length !== 1 ? "s" : ""}
+								</Badge>
+							)}
+						</div>
 					</div>
-				)}
-
-				{!query && (
-					<div className="text-center py-8 text-muted-foreground">
-						<div className="text-4xl mb-2">🔍</div>
-						<p>Enter a song name, artist, or Spotify/YouTube URL to search</p>
-						<p className="text-xs mt-2">
-							Example: "love reason why" or Spotify/YouTube track URL
-						</p>
-					</div>
-				)}
-
-				{!connected && (
-					<div className="text-center py-4 text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-						<p className="text-sm">
-							⚠️ Not connected to bot. Please connect first.
-						</p>
-					</div>
-				)}
-			</CardContent>
-		</Card>
+					{/* Loading State */}
+					{isLoading && (
+						<div className="space-y-3">
+							{Array.from({ length: 3 }, (_, i) => (
+								<div
+									key={`skeleton-loading-${Date.now()}-${i}`}
+									className="flex items-center space-x-3 p-3"
+								>
+									<Skeleton className="h-12 w-12 rounded-md" />
+									<div className="flex-1 space-y-2">
+										<Skeleton className="h-4 w-32" />
+										<Skeleton className="h-3 w-24" />
+									</div>
+									<Skeleton className="h-8 w-16" />
+								</div>
+							))}
+						</div>
+					)}
+					{/* Error State */}
+					{error && !isLoading && (
+						<div className="flex flex-col items-center justify-center h-32 space-y-4">
+							<div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center">
+								<X className="w-6 h-6 text-destructive" />
+							</div>
+							<div className="text-center space-y-2">
+								<h3 className="text-sm font-semibold text-destructive">
+									Search Error
+								</h3>
+								<p className="text-xs text-muted-foreground">{error}</p>
+							</div>
+						</div>
+					)}
+					{/* Results List */}
+					{!isLoading && results.length > 0 && (
+						<ScrollArea className="h-96">
+							<div className="space-y-1">
+								{results.map((result, index) => (
+									<div
+										key={result.id}
+										className="group flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-lg transition-colors"
+									>
+										{/* Track Number / Play Button */}
+										<div className="w-6 flex-shrink-0 text-right">
+											<span className="text-sm text-muted-foreground group-hover:hidden">
+												{index + 1}
+											</span>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handlePlay(result)}
+												className="hidden group-hover:flex h-6 w-6 p-0 hover:bg-primary hover:text-primary-foreground"
+											>
+												<Play className="w-3 h-3" />
+											</Button>
+										</div>
+										{/* Artwork */}
+										<div className="relative flex-shrink-0">
+											<Avatar className="h-12 w-12 rounded-md">
+												<AvatarImage src={result.artwork} alt={result.title} />
+												<AvatarFallback className="rounded-md">
+													<Music className="w-5 h-5" />
+												</AvatarFallback>
+											</Avatar>
+											{result.type === "playlist" && (
+												<div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
+													<Music className="w-2 h-2" />
+												</div>
+											)}
+										</div>
+										{/* Track Info */}
+										<div className="flex-1 min-w-0">
+											<div className="flex items-center space-x-2 mb-1">
+												<p className="font-medium text-foreground truncate">
+													{result.title}
+												</p>
+												{result.isPlaying && (
+													<div className="flex space-x-0.5">
+														<div className="w-1 h-3 bg-primary rounded-full animate-pulse" />
+														<div className="w-1 h-3 bg-primary rounded-full animate-pulse delay-100" />
+														<div className="w-1 h-3 bg-primary rounded-full animate-pulse delay-200" />
+													</div>
+												)}
+											</div>
+											<div className="flex items-center space-x-1 text-sm text-muted-foreground">
+												<span>{result.artist}</span>
+												{result.album && (
+													<>
+														<span>•</span>
+														<span>{result.album}</span>
+													</>
+												)}
+											</div>
+										</div>
+										{/* Duration */}
+										<div className="flex-shrink-0 text-sm text-muted-foreground">
+											{result.duration}
+										</div>{" "}
+										{/* Actions */}
+										<div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleLike(result)}
+												className="h-8 w-8 p-0 hover:bg-muted"
+											>
+												<Heart className="w-4 h-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleAddToPlaylist(result)}
+												className="h-8 w-8 p-0 hover:bg-muted"
+											>
+												<Plus className="w-4 h-4" />
+											</Button>
+											{result.url && (
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => handleOpenInBrowser(result)}
+													className="h-8 w-8 p-0 hover:bg-muted"
+													title="Open in browser"
+												>
+													<ExternalLink className="w-4 h-4" />
+												</Button>
+											)}
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-8 w-8 p-0 hover:bg-muted"
+											>
+												<MoreHorizontal className="w-4 h-4" />
+											</Button>
+										</div>
+									</div>
+								))}
+							</div>
+						</ScrollArea>
+					)}
+					{/* No Results */}
+					{!isLoading && results.length === 0 && query && (
+						<div className="flex flex-col items-center justify-center h-64 space-y-4">
+							<div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+								<Search className="w-8 h-8 text-muted-foreground" />
+							</div>
+							<div className="text-center space-y-2">
+								<h3 className="text-lg font-semibold">No results found</h3>
+								<p className="text-sm text-muted-foreground">
+									Try searching for something else or check your spelling
+								</p>
+							</div>
+						</div>
+					)}
+				</div>
+			)}
+		</div>
 	);
 };

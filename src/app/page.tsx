@@ -17,7 +17,7 @@ export default function Home() {
 
 	return (
 		<WebSocketProvider>
-			<div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
+			<div className="min-h-screen bg-background flex">
 				{/* Mobile Header */}
 				<MobileHeader onMenuToggle={toggleSidebar} />
 
