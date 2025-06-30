@@ -126,7 +126,7 @@ export const SearchPanel: React.FC = () => {
 			try {
 				// Use the correct API endpoint like in the example
 				const response = await fetch(
-					`http://localhost:4000/api/music/search?q=${encodeURIComponent(searchQuery)}`,
+					`/api/music/search?q=${encodeURIComponent(searchQuery)}`,
 				);
 
 				if (!response.ok) {
@@ -210,11 +210,19 @@ export const SearchPanel: React.FC = () => {
 		const channelId = userContext.voiceChannelId;
 		const userId = userContext.userId;
 
+		// Ensure the result has a valid query
+		const query =
+			result.uri || result.url || `${result.title} ${result.artist}`;
+		if (!query) {
+			console.warn("No valid query found in the result");
+			return;
+		}
+
 		// WAJIB: Kirim voiceChannelId jika guildId ada
 		if (userId && ((guildId && channelId) || !guildId)) {
 			const command: Record<string, unknown> = {
 				type: "play",
-				query: result.uri || result.url || `${result.title} ${result.artist}`,
+				query,
 				userId,
 			};
 			if (guildId) command.guildId = guildId;
@@ -313,7 +321,7 @@ export const SearchPanel: React.FC = () => {
 			try {
 				// Use the correct API endpoint like in the example
 				const response = await fetch(
-					`http://localhost:4000/api/music/search?q=${encodeURIComponent(searchQuery)}`,
+					`/api/music/search?q=${encodeURIComponent(searchQuery)}`,
 				);
 
 				if (!response.ok) {

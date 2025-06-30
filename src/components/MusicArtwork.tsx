@@ -11,7 +11,7 @@ interface MusicArtworkProps {
 	className?: string;
 }
 
-export const MusicArtworkShadcn: React.FC<MusicArtworkProps> = ({
+export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 	className = "",
 }) => {
 	const { playerState } = useWebSocket();

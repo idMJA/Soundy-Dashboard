@@ -148,14 +148,24 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 				ws &&
 				ws.readyState === WebSocket.OPEN
 			) {
+				addLog(`Already connected to userId: ${userId}, skipping reconnection`);
 				return;
 			}
+
+			// Prevent rapid reconnections
+			if (ws && ws.readyState === WebSocket.CONNECTING) {
+				addLog("WebSocket already connecting, please wait...");
+				return;
+			}
+
 			lastConnectedUserId.current = userId;
 			if (ws && ws.readyState === WebSocket.OPEN) {
+				addLog("Closing existing WebSocket connection");
 				ws.close();
 			}
 			try {
-				const newWs = new WebSocket("ws://localhost:4000/ws");
+				addLog(`Attempting to connect with userId: ${userId}`);
+				const newWs = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/ws`);
 				newWs.onopen = () => {
 					setConnected(true);
 					addLog("Connected to WebSocket");
@@ -317,7 +327,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		};
 	}, [ws]);
 
-	// Auto-update status and queue every 1 second
+	// Auto-update status and queue every 5 seconds
 	useEffect(() => {
 		if (!autoUpdateEnabled || !connected || !userContext.guildId) {
 			return;
@@ -325,7 +335,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
 		const interval = setInterval(() => {
 			requestStatusAndQueue();
-		}, 1000);
+		}, 1000); // 1 second instead of 5 seconds
 
 		return () => {
 			clearInterval(interval);
@@ -358,12 +368,40 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		refreshUser,
 	};
 
-	// On mount, always call refreshUser
+	// On mount, call refreshUser only once
 	useEffect(() => {
-		refreshUser();
-	}, [refreshUser]);
+		let mounted = true;
+		const initializeUser = async () => {
+			if (mounted) {
+				try {
+					const res = await fetch("/api/auth/me");
+					if (res.ok) {
+						const data = await res.json();
+						if (data?.user?.id) {
+							setUserContext((prev) => ({ ...prev, userId: data.user.id }));
+							connect(data.user.id);
+							return;
+						}
+					}
+					if (lastConnectedUserId.current !== undefined) {
+						lastConnectedUserId.current = undefined;
+						disconnectWebSocketOnly();
+					}
+				} catch {
+					if (lastConnectedUserId.current !== undefined) {
+						lastConnectedUserId.current = undefined;
+						disconnectWebSocketOnly();
+					}
+				}
+			}
+		};
+		initializeUser();
+		return () => {
+			mounted = false;
+		};
+	}, [connect, disconnectWebSocketOnly]); // Include necessary dependencies
 
-	// Poll /api/auth/me every 5 seconds to detect VC/guild changes and update WS
+	// Poll /api/auth/me every 30 seconds to detect VC/guild changes and update WS
 	useEffect(() => {
 		const interval = setInterval(async () => {
 			try {
@@ -397,7 +435,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 					}
 				}
 			} catch {}
-		}, 6000); // 6 seconds
+		}, 30000); // 30 seconds instead of 6 seconds
 		return () => clearInterval(interval);
 	}, [ws, userContext.guildId, userContext.voiceChannelId, addLog]);
 

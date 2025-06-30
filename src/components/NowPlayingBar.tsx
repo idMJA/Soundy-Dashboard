@@ -61,7 +61,7 @@ const VolumeIcon = ({ className }: { className?: string }) => (
 	</svg>
 );
 
-export const NowPlayingBarShadcn = () => {
+export const NowPlayingBar = () => {
 	const { connected, userContext, playerState, sendCommand } = useWebSocket();
 	const [localVolume, setLocalVolume] = useState([playerState.volume]);
 	const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,11 +86,10 @@ export const NowPlayingBarShadcn = () => {
 
 				if (userId) {
 					const command: Record<string, unknown> = {
-						type: "volume",
+						type: "set-volume",
 						volume: value[0],
-						userId,
+						guildId,
 					};
-					if (guildId) command.guildId = guildId;
 
 					sendCommand(command as WebSocketCommand);
 				}

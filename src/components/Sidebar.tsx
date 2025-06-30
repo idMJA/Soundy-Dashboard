@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -30,12 +31,49 @@ interface SidebarProps {
 	onToggle?: () => void;
 }
 
+interface Playlist {
+	id: string;
+	userId: string;
+	name: string;
+	guildId: string;
+	createdAt: string;
+	tracks: Array<{
+		id: string;
+		url: string;
+		playlistId: string;
+	}>;
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({
 	activeTab,
 	onTabChange,
 	isOpen = true,
 }) => {
 	const { connected, playerState, userContext } = useWebSocket();
+	const [playlists, setPlaylists] = useState<Playlist[]>([]);
+
+	// Fetch user playlists
+	useEffect(() => {
+		const fetchPlaylists = async () => {
+			if (!userContext.userId) return;
+
+			try {
+				const response = await fetch(
+					`/api/playlist/list/${userContext.userId}`,
+				);
+				if (!response.ok) {
+					throw new Error("Failed to fetch playlists");
+				}
+
+				const data = await response.json();
+				setPlaylists(data.playlists || []);
+			} catch (error) {
+				console.error("Error fetching playlists:", error);
+			}
+		};
+
+		fetchPlaylists();
+	}, [userContext.userId]);
 
 	const mainMenuItems = [
 		{ id: "home", label: "Home", icon: Home },
@@ -140,22 +178,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			<ScrollArea className="flex-1 px-3">
 				<div className="py-2">
 					<h3 className="text-sm font-medium text-sidebar-foreground/70 mb-2">
-						Recently Created
+						My Playlists
 					</h3>
-					{/* Placeholder for playlists */}
 					<div className="space-y-1">
-						{[1, 2, 3, 4, 5].map((i) => (
-							<Button
-								key={i}
-								variant="ghost"
-								className="w-full justify-start h-10 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-							>
-								<div className="w-4 h-4 mr-3 bg-sidebar-foreground/20 rounded-sm flex items-center justify-center">
-									<Music className="w-2 h-2" />
+						{playlists.length > 0 ? (
+							playlists.map((playlist) => (
+								<Button
+									key={playlist.id}
+									variant="ghost"
+									className="w-full justify-start h-10 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+									onClick={() => onTabChange(`playlist-${playlist.id}`)}
+								>
+									<div className="w-4 h-4 mr-3 bg-sidebar-foreground/20 rounded-sm flex items-center justify-center">
+										<Music className="w-2 h-2" />
+									</div>
+									<div className="flex-1 min-w-0">
+										<span className="truncate">{playlist.name}</span>
+										<div className="text-xs text-sidebar-foreground/50">
+											{playlist.tracks.length} tracks
+										</div>
+									</div>
+								</Button>
+							))
+						) : (
+							<div className="text-center py-4">
+								<div className="text-xs text-sidebar-foreground/50">
+									No playlists yet
 								</div>
-								My Playlist #{i}
-							</Button>
-						))}
+							</div>
+						)}
 					</div>
 				</div>
 			</ScrollArea>

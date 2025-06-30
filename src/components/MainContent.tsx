@@ -5,6 +5,7 @@ import { SearchPanel } from "./SearchPanel";
 import { LogsPanel } from "./LogsPanel";
 import { DebugPanel } from "./DebugPanel";
 import { AutoUpdateControls } from "./AutoUpdateControls";
+import { PlaylistDetail } from "./PlaylistDetail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlaylistList } from "./PlaylistList";
@@ -16,6 +17,16 @@ interface MainContentProps {
 
 export const MainContent: React.FC<MainContentProps> = ({ activeTab }) => {
 	const renderContent = () => {
+		// Check if it's a playlist view
+		if (activeTab.startsWith("playlist-")) {
+			const playlistId = activeTab.replace("playlist-", "");
+			return (
+				<div className="space-y-6">
+					<PlaylistDetail playlistId={playlistId} />
+				</div>
+			);
+		}
+
 		switch (activeTab) {
 			case "home":
 				return (

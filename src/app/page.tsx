@@ -4,7 +4,7 @@ import { useState } from "react";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { Sidebar } from "@/components/Sidebar";
 import { MainContent } from "@/components/MainContent";
-import { NowPlayingBarShadcn } from "@/components/NowPlayingBar";
+import { NowPlayingBar } from "@/components/NowPlayingBar";
 import { MobileHeader } from "@/components/MobileHeader";
 
 export default function Home() {
@@ -50,7 +50,7 @@ export default function Home() {
 				</div>
 
 				{/* Now Playing Bar */}
-				<NowPlayingBarShadcn />
+				<NowPlayingBar />
 			</div>
 		</WebSocketProvider>
 	);

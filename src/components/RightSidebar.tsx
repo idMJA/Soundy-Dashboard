@@ -1,23 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { MusicArtworkShadcn } from "./MusicArtwork";
+import { MusicArtwork } from "./MusicArtwork";
 import { useWebSocket } from "./WebSocketProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-	Play,
-	Pause,
-	SkipForward,
-	Square,
-	Volume2,
-	RefreshCw,
-	Music,
-	Clock,
-	MoreHorizontal,
-} from "lucide-react";
+import { RefreshCw, Music, Clock, MoreHorizontal } from "lucide-react";
 
 interface WebSocketCommand {
 	type: string;
@@ -26,70 +14,6 @@ interface WebSocketCommand {
 
 export const RightSidebar: React.FC = () => {
 	const { connected, userContext, playerState, sendCommand } = useWebSocket();
-	const [localVolume, setLocalVolume] = useState([playerState.volume]);
-	const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-	// Sync local volume with player state when it changes from server
-	useEffect(() => {
-		setLocalVolume([playerState.volume]);
-	}, [playerState.volume]);
-
-	// Debounced volume change handler
-	const handleVolumeChange = useCallback(
-		(value: number[]) => {
-			setLocalVolume(value);
-
-			// Clear existing timeout
-			if (volumeTimeoutRef.current) {
-				clearTimeout(volumeTimeoutRef.current);
-			}
-
-			// Set new timeout to send command after 300ms of no changes
-			volumeTimeoutRef.current = setTimeout(() => {
-				const guildId = userContext.guildId;
-				const userId = userContext.userId;
-
-				if (userId) {
-					const command: Record<string, unknown> = {
-						type: "volume",
-						volume: value[0],
-						userId,
-					};
-					if (guildId) command.guildId = guildId;
-					sendCommand(command as WebSocketCommand);
-				}
-			}, 300);
-		},
-		[userContext.guildId, userContext.userId, sendCommand],
-	);
-
-	const handlePlayPause = () => {
-		const guildId = userContext.guildId;
-		const userId = userContext.userId;
-
-		if (userId) {
-			const command: Record<string, unknown> = {
-				type: playerState.playing ? "pause" : "resume",
-				userId,
-			};
-			if (guildId) command.guildId = guildId;
-			sendCommand(command as WebSocketCommand);
-		}
-	};
-
-	const handleSkip = () => {
-		const guildId = userContext.guildId;
-		const userId = userContext.userId;
-
-		if (userId) {
-			const command: Record<string, unknown> = {
-				type: "skip",
-				userId,
-			};
-			if (guildId) command.guildId = guildId;
-			sendCommand(command as WebSocketCommand);
-		}
-	};
 
 	const handleStop = () => {
 		const guildId = userContext.guildId;
@@ -133,7 +57,7 @@ export const RightSidebar: React.FC = () => {
 
 				{/* Album Artwork */}
 				<div className="mb-4">
-					<MusicArtworkShadcn className="w-full" />
+					<MusicArtwork className="w-full" />
 				</div>
 
 				{/* Track Info */}
@@ -158,62 +82,6 @@ export const RightSidebar: React.FC = () => {
 						<p className="text-muted-foreground text-sm">No music playing</p>
 					</div>
 				)}
-
-				{/* Control Buttons */}
-				<div className="flex items-center justify-center gap-3 mb-4">
-					<Button
-						onClick={handlePlayPause}
-						disabled={isDisabled}
-						size="lg"
-						className="rounded-full w-12 h-12"
-					>
-						{playerState.playing ? (
-							<Pause className="w-5 h-5" />
-						) : (
-							<Play className="w-5 h-5" />
-						)}
-					</Button>
-					<Button
-						onClick={handleSkip}
-						disabled={isDisabled}
-						variant="outline"
-						size="sm"
-						className="rounded-full w-10 h-10"
-					>
-						<SkipForward className="w-4 h-4" />
-					</Button>
-					<Button
-						onClick={handleStop}
-						disabled={isDisabled}
-						variant="outline"
-						size="sm"
-						className="rounded-full w-10 h-10"
-					>
-						<Square className="w-4 h-4" />
-					</Button>
-				</div>
-
-				{/* Volume Control */}
-				<div className="space-y-2">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							<Volume2 className="w-4 h-4" />
-							<span className="text-sm">Volume</span>
-						</div>
-						<span className="text-sm text-muted-foreground">
-							{localVolume[0]}%
-						</span>
-					</div>
-					<Slider
-						value={localVolume}
-						onValueChange={handleVolumeChange}
-						disabled={isDisabled}
-						max={100}
-						min={0}
-						step={1}
-						className="w-full"
-					/>
-				</div>
 			</div>
 
 			{/* Queue Section */}
