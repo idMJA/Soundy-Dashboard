@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useWebSocket } from "./WebSocketProvider";
 import { Play, Music, Clock, Calendar, Trash2, Plus } from "lucide-react";
+import { useWebSocket } from "@/components/WebSocketProvider";
 
-interface PlaylistDetailProps {
-	playlistId: string;
+interface PlaylistPageProps {
+	params: {
+		id: string;
+	};
 }
 
 interface Track {
@@ -35,9 +37,8 @@ interface Playlist {
 	tracks: Track[];
 }
 
-export const PlaylistDetail: React.FC<PlaylistDetailProps> = ({
-	playlistId,
-}) => {
+export default function PlaylistPage({ params }: PlaylistPageProps) {
+	const playlistId = params.id;
 	const { connected, userContext, sendCommand } = useWebSocket();
 	const [playlist, setPlaylist] = useState<Playlist | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -426,4 +427,4 @@ export const PlaylistDetail: React.FC<PlaylistDetailProps> = ({
 			</Card>
 		</div>
 	);
-};
+}

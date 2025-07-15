@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import {
 	Search,
@@ -24,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { useWebSocket } from "./WebSocketProvider";
+import { useWebSocket } from "@/components/WebSocketProvider";
 
 interface WebSocketCommand {
 	type: string;
@@ -40,8 +42,8 @@ interface SearchResult {
 	artwork?: string;
 	type: "song" | "playlist" | "artist" | "album";
 	isPlaying?: boolean;
-	url?: string; // YouTube URL or other source
-	uri?: string; // Track URI for playing
+	url?: string;
+	uri?: string;
 }
 
 interface SearchCategory {
@@ -50,7 +52,7 @@ interface SearchCategory {
 	icon: React.ReactNode;
 	color: string;
 	description: string;
-	searchQuery?: string; // Predefined search terms for categories
+	searchQuery?: string;
 }
 
 const searchCategories: SearchCategory[] = [
@@ -96,15 +98,18 @@ const recentSearches = [
 	"Electronic Chill",
 ];
 
-export const SearchPanel: React.FC = () => {
+export default function SearchPage() {
 	const { connected, userContext, sendCommand } = useWebSocket();
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<SearchResult[]>([]);
+	const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+	const [likeLoading, setLikeLoading] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [showSuggestions, setShowSuggestions] = useState(false);
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+
 	// Debounced search effect
 	useEffect(() => {
 		const formatDurationInternal = (ms: number): string => {
@@ -124,7 +129,6 @@ export const SearchPanel: React.FC = () => {
 			setError(null);
 
 			try {
-				// Use the correct API endpoint like in the example
 				const response = await fetch(
 					`/api/music/search?q=${encodeURIComponent(searchQuery)}`,
 				);
@@ -135,12 +139,10 @@ export const SearchPanel: React.FC = () => {
 
 				const data = await response.json();
 
-				// Transform the API response to our SearchResult format
-				// The API returns { tracks: Track[] } format
 				interface ApiTrack {
 					title: string;
 					author: string;
-					duration: number; // in milliseconds
+					duration: number;
 					uri: string;
 					artwork: string;
 					isStream: boolean;
@@ -151,7 +153,7 @@ export const SearchPanel: React.FC = () => {
 						id: track.uri || `result-${index}`,
 						title: track.title || "Unknown Title",
 						artist: track.author || "Unknown Artist",
-						album: undefined, // API doesn't provide album info
+						album: undefined,
 						duration: formatDurationInternal(track.duration),
 						artwork: track.artwork,
 						type: "song" as const,
@@ -210,7 +212,6 @@ export const SearchPanel: React.FC = () => {
 		const channelId = userContext.voiceChannelId;
 		const userId = userContext.userId;
 
-		// Ensure the result has a valid query
 		const query =
 			result.uri || result.url || `${result.title} ${result.artist}`;
 		if (!query) {
@@ -218,7 +219,6 @@ export const SearchPanel: React.FC = () => {
 			return;
 		}
 
-		// WAJIB: Kirim voiceChannelId jika guildId ada
 		if (userId && ((guildId && channelId) || !guildId)) {
 			const command: Record<string, unknown> = {
 				type: "play",
@@ -245,7 +245,6 @@ export const SearchPanel: React.FC = () => {
 		const channelId = userContext.voiceChannelId;
 		const userId = userContext.userId;
 
-		// WAJIB: Kirim voiceChannelId jika guildId ada
 		if (userId && ((guildId && channelId) || !guildId)) {
 			const command: Record<string, unknown> = {
 				type: "play",
@@ -268,16 +267,13 @@ export const SearchPanel: React.FC = () => {
 			return;
 		}
 
-		console.log("Adding to playlist:", result.title, "by", result.artist);
-
-		// For now, just add to queue using the same logic as play
 		const guildId = userContext.guildId;
 		const channelId = userContext.voiceChannelId;
 		const userId = userContext.userId;
 
 		if (userId && ((guildId && channelId) || !guildId)) {
 			const command: Record<string, unknown> = {
-				type: "add", // or 'queue' depending on the API
+				type: "add",
 				query: result.uri || result.url || `${result.title} ${result.artist}`,
 				userId,
 			};
@@ -288,9 +284,36 @@ export const SearchPanel: React.FC = () => {
 			sendCommand(command as WebSocketCommand);
 		}
 	};
-	const handleLike = (result: SearchResult) => {
-		console.log("Liking:", result.title, "by", result.artist);
-		// Implement like functionality - could save to favorites list
+	const handleLike = async (result: SearchResult) => {
+		if (!userContext?.userId) return;
+		setLikeLoading(result.id);
+		const isLiked = likedIds.has(result.id);
+		try {
+			const payload = {
+				userId: userContext.userId,
+				uri: result.uri,
+				action: isLiked ? "unlike" : "like",
+			};
+			const res = await fetch("/api/music/like", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+			if (!res.ok) throw new Error("Failed to update like");
+			setLikedIds((prev) => {
+				const next = new Set(prev);
+				if (isLiked) {
+					next.delete(result.id);
+				} else {
+					next.add(result.id);
+				}
+				return next;
+			});
+		} catch {
+			// Optionally show error
+		} finally {
+			setLikeLoading(null);
+		}
 	};
 
 	const handleOpenInBrowser = (result: SearchResult) => {
@@ -298,83 +321,6 @@ export const SearchPanel: React.FC = () => {
 			window.open(result.url, "_blank");
 		}
 	};
-
-	// Move formatDuration inside useEffect to avoid dependency issues
-	// Debounced search effect
-	useEffect(() => {
-		const formatDurationInternal = (ms: number): string => {
-			const seconds = Math.floor(ms / 1000);
-			const minutes = Math.floor(seconds / 60);
-			const remainingSeconds = seconds % 60;
-			return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-		};
-
-		const performSearchInternal = async (searchQuery: string) => {
-			if (!searchQuery.trim()) {
-				setResults([]);
-				return;
-			}
-
-			setIsLoading(true);
-			setError(null);
-
-			try {
-				// Use the correct API endpoint like in the example
-				const response = await fetch(
-					`/api/music/search?q=${encodeURIComponent(searchQuery)}`,
-				);
-
-				if (!response.ok) {
-					throw new Error(`Search failed: ${response.statusText}`);
-				}
-
-				const data = await response.json();
-
-				// Transform the API response to our SearchResult format
-				// The API returns { tracks: Track[] } format
-				interface ApiTrack {
-					title: string;
-					author: string;
-					duration: number; // in milliseconds
-					uri: string;
-					artwork: string;
-					isStream: boolean;
-				}
-
-				const searchResults: SearchResult[] = (data.tracks || []).map(
-					(track: ApiTrack, index: number) => ({
-						id: track.uri || `result-${index}`,
-						title: track.title || "Unknown Title",
-						artist: track.author || "Unknown Artist",
-						album: undefined, // API doesn't provide album info
-						duration: formatDurationInternal(track.duration),
-						artwork: track.artwork,
-						type: "song" as const,
-						url: track.uri,
-						uri: track.uri,
-					}),
-				);
-
-				setResults(searchResults);
-			} catch (err) {
-				console.error("Search error:", err);
-				setError(err instanceof Error ? err.message : "Search failed");
-				setResults([]);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		if (query.length > 2) {
-			const timer = setTimeout(() => {
-				performSearchInternal(query);
-			}, 500);
-			return () => clearTimeout(timer);
-		} else {
-			setResults([]);
-			setError(null);
-		}
-	}, [query]);
 
 	if (!connected) {
 		return (
@@ -673,12 +619,22 @@ export const SearchPanel: React.FC = () => {
 										{/* Actions */}
 										<div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
 											<Button
-												variant="ghost"
+												variant={
+													likedIds.has(result.id) ? "secondary" : "ghost"
+												}
 												size="sm"
 												onClick={() => handleLike(result)}
 												className="h-8 w-8 p-0 hover:bg-muted"
+												disabled={likeLoading === result.id}
 											>
-												<Heart className="w-4 h-4" />
+												<Heart
+													className={
+														"w-4 h-4 transition-colors " +
+														(likedIds.has(result.id)
+															? "text-primary fill-primary"
+															: "")
+													}
+												/>
 											</Button>
 											<Button
 												variant="ghost"
@@ -730,4 +686,4 @@ export const SearchPanel: React.FC = () => {
 			)}
 		</div>
 	);
-};
+}

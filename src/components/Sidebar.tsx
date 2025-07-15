@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -22,11 +23,11 @@ import {
 	PlayCircle,
 	PauseCircle,
 	FileText,
+	Compass,
+	Radio,
 } from "lucide-react";
 
 interface SidebarProps {
-	activeTab: string;
-	onTabChange: (tab: string) => void;
 	isOpen?: boolean;
 	onToggle?: () => void;
 }
@@ -44,11 +45,9 @@ interface Playlist {
 	}>;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-	activeTab,
-	onTabChange,
-	isOpen = true,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
+	const router = useRouter();
+	const pathname = usePathname();
 	const { connected, playerState, userContext } = useWebSocket();
 	const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
@@ -76,20 +75,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
 	}, [userContext.userId]);
 
 	const mainMenuItems = [
-		{ id: "home", label: "Home", icon: Home },
-		{ id: "search", label: "Search", icon: Search },
-		{ id: "library", label: "Your Library", icon: Library },
+		{ id: "/", label: "Home", icon: Home, href: "/" },
+		{ id: "/search", label: "Search", icon: Search, href: "/search" },
+		{ id: "/discover", label: "Discover", icon: Compass, href: "/discover" },
+		{ id: "/library", label: "Your Library", icon: Library, href: "/library" },
 	];
 
 	const libraryItems = [
-		{ id: "liked", label: "Liked Songs", icon: Heart },
-		{ id: "downloaded", label: "Downloaded", icon: Download },
+		{ id: "/liked", label: "Liked Songs", icon: Heart, href: "/liked" },
+		{
+			id: "/recent",
+			label: "Recently Played",
+			icon: Download,
+			href: "/recent",
+		},
+		{ id: "/mixes", label: "Daily Mixes", icon: Radio, href: "/mixes" },
 	];
 
 	const settingsItems = [
-		{ id: "settings", label: "Settings", icon: Settings },
-		{ id: "logs", label: "Logs", icon: FileText },
+		{ id: "/settings", label: "Settings", icon: Settings, href: "/settings" },
+		{ id: "/logs", label: "Logs", icon: FileText, href: "/logs" },
 	];
+
+	const isActiveRoute = (href: string) => {
+		if (href === "/") {
+			return pathname === "/";
+		}
+		return pathname.startsWith(href);
+	};
 
 	return (
 		<div
@@ -120,14 +133,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					{mainMenuItems.map((item) => (
 						<li key={item.id}>
 							<Button
-								variant={activeTab === item.id ? "secondary" : "ghost"}
+								variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
 								className={cn(
 									"w-full justify-start h-10 px-3 text-sm font-medium transition-colors",
-									activeTab === item.id
+									isActiveRoute(item.href)
 										? "bg-sidebar-accent text-sidebar-accent-foreground"
 										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 								)}
-								onClick={() => onTabChange(item.id)}
+								onClick={() => router.push(item.href)}
 							>
 								<item.icon className="mr-3 h-4 w-4" />
 								{item.label}
@@ -157,14 +170,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					{libraryItems.map((item) => (
 						<li key={item.id}>
 							<Button
-								variant={activeTab === item.id ? "secondary" : "ghost"}
+								variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
 								className={cn(
 									"w-full justify-start h-10 px-3 text-sm font-medium transition-colors",
-									activeTab === item.id
+									isActiveRoute(item.href)
 										? "bg-sidebar-accent text-sidebar-accent-foreground"
 										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 								)}
-								onClick={() => onTabChange(item.id)}
+								onClick={() => router.push(item.href)}
 							>
 								<item.icon className="mr-3 h-4 w-4" />
 								{item.label}
@@ -187,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 									key={playlist.id}
 									variant="ghost"
 									className="w-full justify-start h-10 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-									onClick={() => onTabChange(`playlist-${playlist.id}`)}
+									onClick={() => router.push(`/playlist/${playlist.id}`)}
 								>
 									<div className="w-4 h-4 mr-3 bg-sidebar-foreground/20 rounded-sm flex items-center justify-center">
 										<Music className="w-2 h-2" />
@@ -219,14 +232,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					{settingsItems.map((item) => (
 						<li key={item.id}>
 							<Button
-								variant={activeTab === item.id ? "secondary" : "ghost"}
+								variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
 								className={cn(
 									"w-full justify-start h-10 px-3 text-sm font-medium transition-colors",
-									activeTab === item.id
+									isActiveRoute(item.href)
 										? "bg-sidebar-accent text-sidebar-accent-foreground"
 										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 								)}
-								onClick={() => onTabChange(item.id)}
+								onClick={() => router.push(item.href)}
 							>
 								<item.icon className="mr-3 h-4 w-4" />
 								{item.label}

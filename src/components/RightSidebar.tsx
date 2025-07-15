@@ -15,20 +15,6 @@ interface WebSocketCommand {
 export const RightSidebar: React.FC = () => {
 	const { connected, userContext, playerState, sendCommand } = useWebSocket();
 
-	const handleStop = () => {
-		const guildId = userContext.guildId;
-		const userId = userContext.userId;
-
-		if (userId) {
-			const command: Record<string, unknown> = {
-				type: "stop",
-				userId,
-			};
-			if (guildId) command.guildId = guildId;
-			sendCommand(command as WebSocketCommand);
-		}
-	};
-
 	const handleGetQueue = () => {
 		const guildId = userContext.guildId;
 		const userId = userContext.userId;

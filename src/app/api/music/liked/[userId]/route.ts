@@ -7,24 +7,21 @@ export async function GET(
 ) {
 	try {
 		const { userId } = await params;
-
 		const { response, data } = await makeApiRequest(
-			`api/playlist/list/${userId}`,
+			`api/music/liked/${userId}`,
 			{
 				method: "GET",
 			},
 		);
-
 		if (!response.ok) {
 			return NextResponse.json(
-				{ error: data.error || "Failed to fetch playlists" },
+				{ error: data.error || "Failed to fetch liked songs" },
 				{ status: response.status },
 			);
 		}
-
 		return NextResponse.json(data);
 	} catch (error) {
-		console.error("Error fetching playlists:", error);
+		console.error("Error fetching liked songs:", error);
 		return NextResponse.json(
 			{ error: "Internal server error" },
 			{ status: 500 },
