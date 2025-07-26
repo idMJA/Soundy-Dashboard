@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LikedSongs } from "@/components/LikedSongs";
 import { PlaylistList } from "@/components/PlaylistList";
 
 export default function LibraryPage() {
@@ -12,14 +11,6 @@ export default function LibraryPage() {
 					<CardTitle>Your Library</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle className="text-lg">Liked Songs</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<LikedSongs />
-						</CardContent>
-					</Card>
 					<Card>
 						<CardHeader>
 							<CardTitle className="text-lg">Your Playlists</CardTitle>

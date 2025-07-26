@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
 	Search,
 	X,
@@ -99,6 +100,7 @@ const recentSearches = [
 ];
 
 export default function SearchPage() {
+	const router = useRouter();
 	const { connected, userContext, sendCommand } = useWebSocket();
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<SearchResult[]>([]);
@@ -233,6 +235,14 @@ export default function SearchPage() {
 				"Missing required fields for play. Need userId and either (guildId+channelId) or just userId",
 			);
 		}
+	};
+
+	const handleTrackClick = (result: SearchResult) => {
+		// Create a URL-safe ID from the track data
+		const trackId = encodeURIComponent(
+			result.uri || result.url || `${result.title} ${result.artist}`,
+		);
+		router.push(`/view/${trackId}`);
 	};
 
 	const handlePlayDirect = (searchQuery: string) => {
@@ -589,7 +599,12 @@ export default function SearchPage() {
 											)}
 										</div>
 										{/* Track Info */}
-										<div className="flex-1 min-w-0">
+										<button
+											type="button"
+											className="flex-1 min-w-0 cursor-pointer hover:text-primary transition-colors text-left"
+											onClick={() => handleTrackClick(result)}
+											aria-label={`View details for ${result.title} by ${result.artist}`}
+										>
 											<div className="flex items-center space-x-2 mb-1">
 												<p className="font-medium text-foreground truncate">
 													{result.title}
@@ -611,7 +626,7 @@ export default function SearchPage() {
 													</>
 												)}
 											</div>
-										</div>
+										</button>
 										{/* Duration */}
 										<div className="flex-shrink-0 text-sm text-muted-foreground">
 											{result.duration}

@@ -14,7 +14,7 @@ interface PlaylistPageProps {
 }
 
 interface Track {
-	id: string;
+	id: string; // This is the database ID
 	url: string;
 	playlistId: string;
 	info: string;
@@ -133,15 +133,15 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 		if (!userContext.userId || !playlist) return;
 
 		try {
-			const response = await fetch("/api/playlist", {
-				method: "PATCH",
+			const response = await fetch("/api/playlist/remove", {
+				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
 					userId: userContext.userId,
-					playlist: playlist.name,
-					trackUri: track.url,
+					playlistId: playlist.id,
+					trackId: track.id, // Send the database ID instead of trackUri
 				}),
 			});
 
@@ -190,8 +190,8 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 			const trackInfo = searchData.tracks[0];
 
 			// Add track to playlist
-			const response = await fetch("/api/playlist", {
-				method: "PUT",
+			const response = await fetch("/api/playlist/add", {
+				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},

@@ -9,7 +9,7 @@ export async function GET(
 		const { id } = await params;
 
 		// For view playlist, we redirect to the backend URL since it might return HTML or special content
-		const url = getApiUrl(`api/playlist/viewById/${id}`);
+		const url = getApiUrl(`api/playlist/view/${id}`);
 
 		return NextResponse.redirect(url);
 	} catch (error) {

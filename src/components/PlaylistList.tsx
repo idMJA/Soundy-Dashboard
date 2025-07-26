@@ -263,7 +263,7 @@ export const PlaylistList = () => {
 							size="sm"
 							variant="outline"
 							onClick={() =>
-								window.open(`/api/playlist/viewById/${playlist.id}`, "_blank")
+								window.open(`/api/playlist/view/${playlist.id}`, "_blank")
 							}
 						>
 							View Playlist

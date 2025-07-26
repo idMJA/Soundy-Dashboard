@@ -309,13 +309,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 				{connected && userContext.userId && (
 					<div className="flex items-center space-x-2">
 						<Avatar className="h-6 w-6">
-							<AvatarImage src="" alt="User" />
+							<AvatarImage
+								src={
+									userContext.avatar
+										? `https://cdn.discordapp.com/avatars/${userContext.userId}/${userContext.avatar}.webp`
+										: ""
+								}
+								alt="User"
+							/>
 							<AvatarFallback className="text-xs">
 								{userContext.userId.slice(0, 2).toUpperCase()}
 							</AvatarFallback>
 						</Avatar>
 						<span className="text-xs text-sidebar-foreground/70 flex-1 truncate">
-							{userContext.userId}
+							{userContext.globalName}
 						</span>
 						<Button
 							variant="ghost"

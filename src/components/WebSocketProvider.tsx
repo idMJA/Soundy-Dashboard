@@ -14,6 +14,8 @@ interface UserContext {
 	guildId?: string;
 	voiceChannelId?: string;
 	userId?: string;
+	avatar?: string;
+	globalName?: string;
 }
 
 interface Track {
@@ -141,7 +143,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
 	// 2. connect
 	const connect = useCallback(
-		(userId?: string, guildId?: string) => {
+		(
+			userId?: string,
+			guildId?: string,
+			avatar?: string,
+			globalName?: string,
+		) => {
 			// Only reconnect if userId is different from lastConnectedUserId
 			if (
 				lastConnectedUserId.current === userId &&
@@ -173,7 +180,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 					if (userId) {
 						newWs.send(JSON.stringify({ type: "user-connect", userId }));
 						addLog(`Sent user-connect for userId: ${userId}`);
-						setUserContext((prev) => ({ ...prev, userId }));
+						setUserContext((prev) => ({ ...prev, userId, avatar, globalName }));
 					} else if (guildId) {
 						newWs.send(JSON.stringify({ type: "join", guildId }));
 						addLog(`Sent join for guildId: ${guildId}`);
@@ -192,6 +199,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 										guildId: data.guildId,
 										voiceChannelId: data.voiceChannelId,
 										userId: data.userId || prev.userId,
+										avatar: data.avatar || prev.avatar,
+										globalName: data.globalName || prev.globalName,
 									}));
 									addLog(
 										`User context updated: Guild ${data.guildId}, Channel ${data.voiceChannelId}`,
@@ -294,7 +303,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 			if (res.ok) {
 				const data = await res.json();
 				if (data?.user?.id) {
-					setUserContext((prev) => ({ ...prev, userId: data.user.id }));
+					setUserContext((prev) => ({
+						...prev,
+						userId: data.user.id,
+						avatar: data.user.avatar,
+						globalName: data.user.global_name,
+					}));
 					connect(data.user.id);
 					return;
 				}
@@ -378,7 +392,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 					if (res.ok) {
 						const data = await res.json();
 						if (data?.user?.id) {
-							setUserContext((prev) => ({ ...prev, userId: data.user.id }));
+							setUserContext((prev) => ({
+								...prev,
+								userId: data.user.id,
+								avatar: data.user.avatar,
+								globalName: data.user.global_name,
+							}));
 							connect(data.user.id);
 							return;
 						}
@@ -401,7 +420,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		};
 	}, [connect, disconnectWebSocketOnly]); // Include necessary dependencies
 
-	// Poll /api/auth/me every 30 seconds to detect VC/guild changes and update WS
+	// Poll /api/auth/me every 6 seconds to detect VC/guild changes and update WS
 	useEffect(() => {
 		const interval = setInterval(async () => {
 			try {
@@ -435,7 +454,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 					}
 				}
 			} catch {}
-		}, 30000); // 30 seconds instead of 6 seconds
+		}, 6000); // 6 seconds instead of 30 seconds
 		return () => clearInterval(interval);
 	}, [ws, userContext.guildId, userContext.voiceChannelId, addLog]);
 

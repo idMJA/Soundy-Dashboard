@@ -78,7 +78,7 @@ export default function LikedSongsPage() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					userId: userContext.userId,
-					trackId: song.trackId,
+					trackId: song.id,
 					action: "unlike",
 				}),
 			});

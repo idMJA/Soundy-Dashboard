@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/components/WebSocketProvider";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ type RecentTrack = {
 };
 
 export default function HomePage() {
+	const router = useRouter();
 	const { userContext } = useWebSocket();
 	const [recentTracks, setRecentTracks] = useState<RecentTrack[]>([]);
 	const [recentLoading, setRecentLoading] = useState(false);
@@ -41,6 +43,16 @@ export default function HomePage() {
 		}
 		fetchRecent();
 	}, [userContext?.userId]);
+
+	const handleTrackClick = (track: RecentTrack) => {
+		// Create a URL-safe ID from the track data
+		const trackId = encodeURIComponent(
+			track.uri ||
+				track.id ||
+				`${track.title || track.name} ${track.artist || track.author}`,
+		);
+		router.push(`/view/${trackId}`);
+	};
 
 	return (
 		<div className="flex h-full gap-6">
@@ -126,50 +138,6 @@ export default function HomePage() {
 					</div>
 				</div>
 
-				{/* Jump back in Section */}
-				<div className="space-y-4">
-					<h2 className="text-2xl font-semibold">Jump back in</h2>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{/* ...existing code for jump back in... */}
-						{[
-							{
-								name: "Daily Mix 1",
-								description: "Kagura-sama, YOASOBI and more",
-								image: "🎧",
-							},
-							{
-								name: "Chill Vibes",
-								description: "Lo-fi hip hop beats",
-								image: "☁️",
-							},
-							{
-								name: "Anime OST",
-								description: "Your favorite anime soundtracks",
-								image: "🌸",
-							},
-						].map((item, jumpIndex) => (
-							<div
-								key={`jump-${item.name}-${jumpIndex}`}
-								className="group bg-card hover:bg-accent transition-colors rounded-lg p-4 cursor-pointer"
-							>
-								<div className="flex items-center space-x-3">
-									<div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center group-hover:bg-background transition-colors">
-										<div className="text-2xl">{item.image}</div>
-									</div>
-									<div className="flex-1 min-w-0">
-										<h3 className="font-medium truncate group-hover:text-primary">
-											{item.name}
-										</h3>
-										<p className="text-sm text-muted-foreground truncate">
-											{item.description}
-										</p>
-									</div>
-								</div>
-							</div>
-						))}
-					</div>
-				</div>
-
 				{/* Recently Played Section (API) */}
 				<div className="space-y-4">
 					<div className="flex items-center justify-between">
@@ -184,9 +152,9 @@ export default function HomePage() {
 					</div>
 					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
 						{recentLoading ? (
-							Array.from({ length: 5 }).map((_, i) => (
+							Array.from({ length: 5 }).map(() => (
 								<div
-									key={`recent-skel-${i}`}
+									key={`recent-skel-${crypto.randomUUID()}`}
 									className="bg-muted rounded-lg aspect-square animate-pulse"
 								/>
 							))
@@ -199,10 +167,19 @@ export default function HomePage() {
 								No recent tracks found.
 							</div>
 						) : (
-							recentTracks.map((track, idx) => (
-								<div
-									key={track.id || track.uri || idx}
-									className="group cursor-pointer"
+							recentTracks.map((track) => (
+								<button
+									key={track.id || track.uri}
+									className="group cursor-pointer bg-transparent border-none p-0 text-left w-full"
+									onClick={() => handleTrackClick(track)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											handleTrackClick(track);
+										}
+									}}
+									aria-label={`View details for ${track.title || track.name || "Unknown Title"} by ${track.artist || track.author || "Unknown Artist"}`}
+									type="button"
 								>
 									<div className="bg-muted rounded-lg aspect-square flex items-center justify-center mb-3 group-hover:bg-accent transition-colors shadow-sm overflow-hidden relative">
 										{track.artwork ? (
@@ -225,7 +202,7 @@ export default function HomePage() {
 									<p className="text-xs text-muted-foreground truncate">
 										{track.artist || track.author || "Unknown Artist"}
 									</p>
-								</div>
+								</button>
 							))
 						)}
 					</div>
