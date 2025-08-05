@@ -19,22 +19,29 @@ const MenuIcon = ({ className }: { className?: string }) => (
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuToggle }) => {
 	return (
-		<div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 fixed top-0 left-0 right-0 z-50">
+		<div className="lg:hidden glass border-b border-border/50 p-4 fixed top-0 left-0 right-0 z-50 backdrop-blur-xl shadow-modern animate-slide-up">
 			<div className="flex items-center justify-between">
-				<div className="flex items-center space-x-3">
+				<div className="flex items-center space-x-4">
 					<button
 						type="button"
 						onClick={onMenuToggle}
-						className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+						className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-all hover:scale-110"
 					>
 						<MenuIcon className="w-6 h-6" />
 					</button>
-					<div className="flex items-center space-x-2">
-						<div className="text-xl">🎵</div>
-						<span className="text-lg font-bold text-gray-900 dark:text-white">
-							Soundy
-						</span>
+					<div className="flex items-center space-x-3">
+						<div className="w-8 h-8 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
+							<div className="text-white text-lg">🎵</div>
+						</div>
+						<div>
+							<h1 className="text-lg font-bold text-foreground">Soundy</h1>
+							<p className="text-xs text-muted-foreground">Music Dashboard</p>
+						</div>
 					</div>
+				</div>
+				<div className="flex items-center gap-2">
+					<div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+					<span className="text-xs text-muted-foreground">Live</span>
 				</div>
 			</div>
 		</div>

@@ -21,7 +21,6 @@ import {
 	LogOut,
 	Music,
 	PlayCircle,
-	PauseCircle,
 	FileText,
 	Compass,
 	Radio,
@@ -107,42 +106,54 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 	return (
 		<div
 			className={cn(
-				"w-64 bg-sidebar text-sidebar-foreground h-screen flex flex-col fixed left-0 top-0 z-40 transition-transform duration-300 border-r border-sidebar-border",
+				"w-64 bg-sidebar text-sidebar-foreground h-screen flex flex-col fixed left-0 top-0 z-40 transition-all duration-300 border-r border-sidebar-border/50 shadow-modern",
 				isOpen ? "translate-x-0" : "-translate-x-full",
 				"lg:translate-x-0",
 			)}
 		>
 			{/* Header */}
-			<div className="p-6">
+			<div className="p-6 border-b border-sidebar-border/30">
 				<div className="flex items-center justify-between">
-					<div className="flex items-center space-x-2">
-						<div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-							<Music className="w-4 h-4 text-primary-foreground" />
+					<div className="flex items-center space-x-3">
+						<div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
+							<Music className="w-5 h-5 text-white" />
 						</div>
-						<span className="text-xl font-bold text-sidebar-foreground">
-							Soundy
-						</span>
+						<div>
+							<span className="text-xl font-bold text-sidebar-foreground">
+								Soundy
+							</span>
+							<div className="text-xs text-sidebar-foreground/60">
+								Music Dashboard
+							</div>
+						</div>
 					</div>
 					<ThemeToggle />
 				</div>
 			</div>
 
 			{/* Main Navigation */}
-			<nav className="px-3 pb-2">
-				<ul className="space-y-1">
+			<nav className="px-4 py-4">
+				<ul className="space-y-2">
 					{mainMenuItems.map((item) => (
 						<li key={item.id}>
 							<Button
 								variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
 								className={cn(
-									"w-full justify-start h-10 px-3 text-sm font-medium transition-colors",
+									"w-full justify-start h-11 px-4 text-sm font-medium transition-all duration-200 rounded-xl group",
 									isActiveRoute(item.href)
-										? "bg-sidebar-accent text-sidebar-accent-foreground"
-										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+										? "bg-primary/10 text-primary shadow-sm border border-primary/20"
+										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm",
 								)}
 								onClick={() => router.push(item.href)}
 							>
-								<item.icon className="mr-3 h-4 w-4" />
+								<item.icon
+									className={cn(
+										"mr-3 h-5 w-5 transition-all",
+										isActiveRoute(item.href)
+											? "text-primary"
+											: "group-hover:scale-110",
+									)}
+								/>
 								{item.label}
 							</Button>
 						</li>
@@ -150,18 +161,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 				</ul>
 			</nav>
 
-			<Separator className="mx-3 bg-sidebar-border" />
+			<Separator className="mx-4 bg-sidebar-border/50" />
 
 			{/* Library Section */}
-			<div className="px-3 py-2">
-				<div className="flex items-center justify-between mb-2">
-					<h3 className="text-sm font-medium text-sidebar-foreground/70">
+			<div className="px-4 py-4">
+				<div className="flex items-center justify-between mb-3">
+					<h3 className="text-sm font-semibold text-sidebar-foreground/80 flex items-center gap-2">
+						<Library className="h-4 w-4" />
 						Your Library
 					</h3>
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-6 w-6 p-0 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+						className="h-8 w-8 p-0 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-primary/10 rounded-lg transition-all"
 					>
 						<Plus className="h-4 w-4" />
 					</Button>
@@ -172,10 +184,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 							<Button
 								variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
 								className={cn(
-									"w-full justify-start h-10 px-3 text-sm font-medium transition-colors",
+									"w-full justify-start h-10 px-3 text-sm font-medium transition-all duration-200 rounded-lg",
 									isActiveRoute(item.href)
-										? "bg-sidebar-accent text-sidebar-accent-foreground"
-										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+										? "bg-primary/10 text-primary"
+										: "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
 								)}
 								onClick={() => router.push(item.href)}
 							>
@@ -188,9 +200,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 			</div>
 
 			{/* Scrollable Area for Playlists */}
-			<ScrollArea className="flex-1 px-3">
+			<ScrollArea className="flex-1 px-4 custom-scrollbar">
 				<div className="py-2">
-					<h3 className="text-sm font-medium text-sidebar-foreground/70 mb-2">
+					<h3 className="text-sm font-semibold text-sidebar-foreground/80 mb-3 flex items-center gap-2">
+						<Music className="h-4 w-4" />
 						My Playlists
 					</h3>
 					<div className="space-y-1">
@@ -199,24 +212,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 								<Button
 									key={playlist.id}
 									variant="ghost"
-									className="w-full justify-start h-10 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+									className="w-full justify-start h-auto p-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-all duration-200"
 									onClick={() => router.push(`/playlist/${playlist.id}`)}
 								>
-									<div className="w-4 h-4 mr-3 bg-sidebar-foreground/20 rounded-sm flex items-center justify-center">
-										<Music className="w-2 h-2" />
+									<div className="w-10 h-10 mr-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center">
+										<Music className="w-4 h-4 text-primary" />
 									</div>
-									<div className="flex-1 min-w-0">
-										<span className="truncate">{playlist.name}</span>
+									<div className="flex-1 min-w-0 text-left">
+										<div className="truncate font-medium">{playlist.name}</div>
 										<div className="text-xs text-sidebar-foreground/50">
-											{playlist.tracks.length} tracks
+											{playlist.tracks.length} track
+											{playlist.tracks.length !== 1 ? "s" : ""}
 										</div>
 									</div>
 								</Button>
 							))
 						) : (
-							<div className="text-center py-4">
-								<div className="text-xs text-sidebar-foreground/50">
+							<div className="text-center py-8">
+								<div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center mx-auto mb-3">
+									<Music className="h-6 w-6 text-muted-foreground" />
+								</div>
+								<div className="text-sm text-sidebar-foreground/60 mb-1">
 									No playlists yet
+								</div>
+								<div className="text-xs text-sidebar-foreground/40">
+									Create your first playlist
 								</div>
 							</div>
 						)}
@@ -224,20 +244,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 				</div>
 			</ScrollArea>
 
-			<Separator className="mx-3 bg-sidebar-border" />
+			<Separator className="mx-4 bg-sidebar-border/50" />
 
 			{/* Settings Section */}
-			<div className="px-3 py-2">
+			<div className="px-4 py-3">
 				<ul className="space-y-1">
 					{settingsItems.map((item) => (
 						<li key={item.id}>
 							<Button
 								variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
 								className={cn(
-									"w-full justify-start h-10 px-3 text-sm font-medium transition-colors",
+									"w-full justify-start h-10 px-3 text-sm font-medium transition-all duration-200 rounded-lg",
 									isActiveRoute(item.href)
-										? "bg-sidebar-accent text-sidebar-accent-foreground"
-										: "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+										? "bg-primary/10 text-primary"
+										: "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
 								)}
 								onClick={() => router.push(item.href)}
 							>
@@ -250,40 +270,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 			</div>
 
 			{/* Connection Status & Now Playing */}
-			<div className="p-3 space-y-3 border-t border-sidebar-border">
+			<div className="p-4 space-y-4 border-t border-sidebar-border/30 bg-sidebar-accent/30">
 				{/* Connection Status */}
 				<div className="flex items-center justify-between">
-					<div className="flex items-center space-x-2">
+					<div className="flex items-center space-x-3">
 						<div
 							className={cn(
-								"w-2 h-2 rounded-full",
-								connected ? "bg-primary animate-pulse" : "bg-destructive",
+								"w-3 h-3 rounded-full shadow-sm",
+								connected ? "bg-primary pulse-green" : "bg-destructive",
 							)}
 						/>
-						<span className="text-xs text-sidebar-foreground/70">
+						<span className="text-sm font-medium text-sidebar-foreground/80">
 							{connected ? "Connected" : "Disconnected"}
 						</span>
 					</div>
 					{connected && (
-						<Badge variant="secondary" className="text-xs">
-							{userContext.userId ? "Authenticated" : "Guest"}
+						<Badge
+							variant="secondary"
+							className="text-xs bg-primary/10 text-primary border-primary/20"
+						>
+							{userContext.userId ? "Live" : "Guest"}
 						</Badge>
 					)}
 				</div>
 
 				{/* Now Playing Mini Card */}
 				{playerState.track && (
-					<div className="bg-sidebar-accent rounded-lg p-3 space-y-2">
-						<div className="flex items-center space-x-2">
-							<div className="w-8 h-8 bg-primary/20 rounded flex items-center justify-center">
+					<div className="glass rounded-xl p-4 space-y-3 animate-slide-up">
+						<div className="flex items-center space-x-3">
+							<div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center shadow-md">
 								{playerState.playing ? (
-									<PauseCircle className="w-4 h-4 text-primary" />
+									<div className="playing-bars">
+										<div className="bar h-2"></div>
+										<div className="bar h-3"></div>
+										<div className="bar h-4"></div>
+										<div className="bar h-2"></div>
+									</div>
 								) : (
-									<PlayCircle className="w-4 h-4 text-primary" />
+									<PlayCircle className="w-5 h-5 text-white" />
 								)}
 							</div>
 							<div className="flex-1 min-w-0">
-								<p className="text-xs font-medium text-sidebar-accent-foreground truncate">
+								<p className="text-sm font-semibold text-sidebar-accent-foreground truncate">
 									{playerState.track.title}
 								</p>
 								<p className="text-xs text-sidebar-accent-foreground/70 truncate">
@@ -291,24 +319,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 								</p>
 							</div>
 						</div>
-						<div className="flex items-center space-x-1">
-							<div
-								className={cn(
-									"w-1 h-1 rounded-full",
-									playerState.playing ? "bg-primary animate-pulse" : "bg-muted",
-								)}
-							/>
-							<span className="text-xs text-sidebar-accent-foreground/70">
-								{playerState.playing ? "Playing" : "Paused"}
-							</span>
+						<div className="flex items-center justify-between">
+							<div className="flex items-center space-x-2">
+								<div
+									className={cn(
+										"w-2 h-2 rounded-full",
+										playerState.playing
+											? "bg-primary animate-pulse"
+											: "bg-muted",
+									)}
+								/>
+								<span className="text-xs text-sidebar-accent-foreground/70 font-medium">
+									{playerState.playing ? "Playing" : "Paused"}
+								</span>
+							</div>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-6 px-2 text-xs hover:bg-primary/10 hover:text-primary rounded-md"
+								onClick={() =>
+									router.push(
+										"/view/" + encodeURIComponent(playerState.track?.uri || ""),
+									)
+								}
+							>
+								View
+							</Button>
 						</div>
 					</div>
 				)}
 
 				{/* User Profile (if connected) */}
 				{connected && userContext.userId && (
-					<div className="flex items-center space-x-2">
-						<Avatar className="h-6 w-6">
+					<div className="flex items-center space-x-3 p-3 bg-sidebar-accent/50 rounded-xl">
+						<Avatar className="h-8 w-8 border-2 border-primary/20">
 							<AvatarImage
 								src={
 									userContext.avatar
@@ -317,19 +361,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 								}
 								alt="User"
 							/>
-							<AvatarFallback className="text-xs">
+							<AvatarFallback className="text-xs bg-primary/10 text-primary">
 								{userContext.userId.slice(0, 2).toUpperCase()}
 							</AvatarFallback>
 						</Avatar>
-						<span className="text-xs text-sidebar-foreground/70 flex-1 truncate">
-							{userContext.globalName}
-						</span>
+						<div className="flex-1 min-w-0">
+							<div className="text-sm font-medium text-sidebar-foreground truncate">
+								{userContext.globalName || "User"}
+							</div>
+							<div className="text-xs text-sidebar-foreground/60">
+								{userContext.guildId ? "Server Member" : "Direct User"}
+							</div>
+						</div>
 						<Button
 							variant="ghost"
 							size="sm"
-							className="h-6 w-6 p-0 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+							className="h-8 w-8 p-0 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
 						>
-							<LogOut className="h-3 w-3" />
+							<LogOut className="h-4 w-4" />
 						</Button>
 					</div>
 				)}

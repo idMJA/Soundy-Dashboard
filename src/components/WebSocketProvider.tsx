@@ -341,7 +341,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		};
 	}, [ws]);
 
-	// Auto-update status and queue every 5 seconds
+	// Auto-update status and queue every 1 seconds
 	useEffect(() => {
 		if (!autoUpdateEnabled || !connected || !userContext.guildId) {
 			return;
