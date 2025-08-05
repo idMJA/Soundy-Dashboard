@@ -5,6 +5,7 @@ import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { Sidebar } from "@/components/Sidebar";
 import { NowPlayingBar } from "@/components/NowPlayingBar";
 import { MobileHeader } from "@/components/MobileHeader";
+import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 
 interface AppLayoutProps {
 	children: React.ReactNode;
@@ -43,6 +44,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
 				{/* Main Content */}
 				<div className="flex-1 lg:ml-64 pt-16 lg:pt-0 pb-20">
+					{/* Global Search Bar */}
+					<div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/50 p-4">
+						<div className="max-w-4xl mx-auto">
+							<GlobalSearchBar className="w-full max-w-md" />
+						</div>
+					</div>
+
 					<div className="flex-1 p-6 bg-background">{children}</div>
 				</div>
 

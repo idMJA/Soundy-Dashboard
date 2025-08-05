@@ -6,19 +6,32 @@ import { useWebSocket } from "./WebSocketProvider";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Music, Play, Pause } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MusicArtworkProps {
 	className?: string;
+	showControls?: boolean;
+	size?: "sm" | "md" | "lg" | "xl";
 }
 
 export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 	className = "",
+	showControls = true,
+	size = "md",
 }) => {
 	const { playerState } = useWebSocket();
 	const [currentArtwork, setCurrentArtwork] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState(false);
 	const lastTrackRef = useRef<string | null>(null);
+
+	const sizeClasses = {
+		sm: "w-16 h-16",
+		md: "w-24 h-24",
+		lg: "w-32 h-32",
+		xl: "w-full aspect-square",
+	};
 
 	// Update artwork only when track changes (not on every status update)
 	useEffect(() => {
@@ -60,92 +73,174 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 
 	if (!currentArtwork) {
 		return (
-			<Card className={`flex items-center justify-center ${className}`}>
-				<div className="text-center p-8">
-					<div className="text-4xl mb-2">🎵</div>
-					<p className="text-muted-foreground text-sm">No music playing</p>
+			<Card
+				className={cn(
+					"flex items-center justify-center music-card group relative overflow-hidden",
+					size === "xl" ? "w-full aspect-square" : sizeClasses[size],
+					className,
+				)}
+			>
+				<div
+					className={cn(
+						"text-center",
+						size === "sm" ? "p-2" : size === "md" ? "p-3" : "p-4",
+					)}
+				>
+					<div
+						className={cn(
+							"rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2",
+							size === "sm"
+								? "w-6 h-6"
+								: size === "md"
+									? "w-8 h-8"
+									: "w-12 h-12",
+						)}
+					>
+						<Music
+							className={cn(
+								"text-primary",
+								size === "sm"
+									? "w-3 h-3"
+									: size === "md"
+										? "w-4 h-4"
+										: "w-6 h-6",
+							)}
+						/>
+					</div>
+					{size !== "sm" && (
+						<>
+							<p className="text-muted-foreground text-sm font-medium">
+								No music playing
+							</p>
+							<p className="text-muted-foreground text-xs mt-1">
+								Start playing to see artwork
+							</p>
+						</>
+					)}
 				</div>
+				{/* Animated background effect */}
+				<div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-green-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 			</Card>
 		);
 	}
 
 	return (
-		<Card className={`overflow-hidden ${className}`}>
-			<div className="relative aspect-square">
+		<Card
+			className={cn(
+				"overflow-hidden music-card group relative shadow-modern hover-lift p-0",
+				sizeClasses[size],
+				className,
+			)}
+		>
+			<div
+				className={cn(
+					"relative w-full h-full",
+					size === "xl" ? "aspect-square" : "",
+				)}
+			>
 				{isLoading && (
-					<div className="absolute inset-0 flex items-center justify-center">
+					<div className="absolute inset-0 flex items-center justify-center bg-muted">
 						<Skeleton className="w-full h-full" />
+						<div className="absolute inset-0 flex items-center justify-center">
+							<div className="w-8 h-8 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
+								<Music className="w-4 h-4 text-primary" />
+							</div>
+						</div>
 					</div>
 				)}
 
 				{error ? (
-					<div className="absolute inset-0 bg-muted flex items-center justify-center">
+					<div className="absolute inset-0 bg-gradient-to-br from-muted/80 to-muted flex items-center justify-center">
 						<div className="text-center">
-							<div className="text-4xl mb-2">🎵</div>
-							<p className="text-muted-foreground text-sm">
-								Image failed to load
-							</p>
+							<div
+								className={cn(
+									"rounded-full bg-destructive/10 flex items-center justify-center mx-auto",
+									size === "sm"
+										? "w-6 h-6"
+										: size === "md"
+											? "w-8 h-8"
+											: "w-12 h-12",
+								)}
+							>
+								<Music
+									className={cn(
+										"text-destructive",
+										size === "sm"
+											? "w-3 h-3"
+											: size === "md"
+												? "w-4 h-4"
+												: "w-6 h-6",
+									)}
+								/>
+							</div>
 						</div>
 					</div>
 				) : (
-					<Image
-						src={currentArtwork}
-						alt="Album artwork"
-						fill
-						sizes="100vw"
-						className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
-						onLoad={handleImageLoad}
-						onError={handleImageError}
-						priority
-						unoptimized
-					/>
-				)}
-
-				{/* Play/Pause indicator */}
-				{playerState.track && (
-					<div className="absolute top-4 right-4">
-						<Badge
-							variant={playerState.playing ? "default" : "secondary"}
-							className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 p-0 ${
-								playerState.playing
-									? "bg-green-500 hover:bg-green-600 animate-pulse text-white"
-									: "bg-muted hover:bg-muted/80 text-muted-foreground"
-							}`}
-						>
-							{playerState.playing ? (
-								<svg
-									className="w-3 h-3"
-									fill="currentColor"
-									viewBox="0 0 24 24"
-									aria-label="Playing"
-								>
-									<title>Playing</title>
-									<path d="M6.25 5A1.25 1.25 0 0 0 5 6.25v11.5A1.25 1.25 0 0 0 6.25 19h3.5A1.25 1.25 0 0 0 11 17.75V6.25A1.25 1.25 0 0 0 9.75 5h-3.5Zm7.75 0A1.25 1.25 0 0 0 12.75 6.25v11.5A1.25 1.25 0 0 0 14 19h3.5A1.25 1.25 0 0 0 18.75 17.75V6.25A1.25 1.25 0 0 0 17.5 5H14Z" />
-								</svg>
-							) : (
-								<svg
-									className="w-3 h-3"
-									fill="currentColor"
-									viewBox="0 0 24 24"
-									aria-label="Paused"
-								>
-									<title>Paused</title>
-									<path d="m7.25 6.693 8.5 4.904a.5.5 0 0 1 0 .866l-8.5 4.904A.5.5 0 0 1 6.5 16.9V7.1a.5.5 0 0 1 .75-.433Z" />
-								</svg>
+					<>
+						<Image
+							src={currentArtwork}
+							alt={`Album artwork for ${playerState.track?.title || "Unknown"}`}
+							fill
+							sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+							className={cn(
+								"object-cover transition-all duration-500",
+								isLoading ? "opacity-0 scale-110" : "opacity-100 scale-100",
+								"group-hover:scale-105",
 							)}
-						</Badge>
-					</div>
+							onLoad={handleImageLoad}
+							onError={handleImageError}
+							priority
+							unoptimized
+						/>
+
+						{/* Overlay gradient for better text visibility */}
+						<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+					</>
 				)}
 
-				{/* Overlay with track info */}
-				{playerState.track && (
-					<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-						<h3 className="text-white font-semibold text-sm mb-1 truncate">
-							{playerState.track.title}
-						</h3>
-						<p className="text-gray-200 text-xs truncate">
-							{playerState.track.author}
-						</p>
+				{/* Sound waves animation for playing state - Spotify-style */}
+				{playerState.playing && showControls && size !== "sm" && (
+					<div
+						className={cn(
+							"absolute",
+							size === "md" ? "bottom-2 right-2" : "bottom-3 right-3",
+						)}
+					>
+						<div
+							className={cn(
+								"flex items-end gap-0.5",
+								size === "md" ? "h-3" : "h-4",
+							)}
+						>
+							<div
+								className={cn(
+									"bg-green-400 rounded-full playing-bar",
+									size === "md" ? "w-0.5" : "w-0.5",
+								)}
+								style={{ height: "40%", animationDelay: "0ms" }}
+							/>
+							<div
+								className={cn(
+									"bg-green-400 rounded-full playing-bar",
+									size === "md" ? "w-0.5" : "w-0.5",
+								)}
+								style={{ height: "100%", animationDelay: "150ms" }}
+							/>
+							<div
+								className={cn(
+									"bg-green-400 rounded-full playing-bar",
+									size === "md" ? "w-0.5" : "w-0.5",
+								)}
+								style={{ height: "60%", animationDelay: "300ms" }}
+							/>
+							<div
+								className={cn(
+									"bg-green-400 rounded-full playing-bar",
+									size === "md" ? "w-0.5" : "w-0.5",
+								)}
+								style={{ height: "80%", animationDelay: "450ms" }}
+							/>
+						</div>
 					</div>
 				)}
 			</div>
