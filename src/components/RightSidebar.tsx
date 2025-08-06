@@ -51,9 +51,9 @@ export const RightSidebar: React.FC = () => {
 		!connected || (!userContext.guildId && !userContext.userId);
 
 	return (
-		<div className="w-80 flex flex-col h-full bg-gradient-to-b from-card to-card/95 border-l border-border/50 shadow-lg">
+		<div className="w-80 flex flex-col h-full bg-gradient-to-b from-card to-card/95 border-l border-border/50 shadow-lg rounded-l-2xl">
 			{/* Header with Now Playing */}
-			<div className="p-6 border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent">
+			<div className="p-6 border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent rounded-tl-2xl">
 				<div className="flex items-center justify-between mb-4">
 					<h2 className="text-lg font-bold flex items-center gap-2 text-card-foreground">
 						<div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">

@@ -124,8 +124,24 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
 
 			{/* Search Modal */}
 			{isOpen && (
-				<div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-					<div className="fixed left-[50%] top-[50%] z-50 w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] p-4">
+				<button
+					type="button"
+					className="fixed inset-0 z-[45] bg-black/20 backdrop-blur-sm cursor-default"
+					onClick={() => setIsOpen(false)}
+					onKeyDown={(e) => {
+						if (e.key === "Escape") {
+							setIsOpen(false);
+						}
+					}}
+					aria-label="Close search modal"
+				>
+					<div
+						className="fixed left-[50%] top-[380%] z-[46] w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] p-4 cursor-default"
+						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => e.stopPropagation()}
+						role="dialog"
+						aria-modal="true"
+					>
 						<Card className="w-full border-border/50 shadow-modern-xl">
 							<CardContent className="p-0">
 								{/* Search Input */}
@@ -237,7 +253,7 @@ export const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({
 							</CardContent>
 						</Card>
 					</div>
-				</div>
+				</button>
 			)}
 		</>
 	);

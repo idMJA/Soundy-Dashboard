@@ -339,7 +339,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 								className="h-6 px-2 text-xs hover:bg-primary/10 hover:text-primary rounded-md"
 								onClick={() =>
 									router.push(
-										"/view/" + encodeURIComponent(playerState.track?.uri || ""),
+										`/view/${encodeURIComponent(playerState.track?.uri || "")}`,
 									)
 								}
 							>

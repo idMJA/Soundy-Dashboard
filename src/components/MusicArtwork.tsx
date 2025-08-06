@@ -4,9 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useWebSocket } from "./WebSocketProvider";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Music, Play, Pause } from "lucide-react";
+import { Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MusicArtworkProps {

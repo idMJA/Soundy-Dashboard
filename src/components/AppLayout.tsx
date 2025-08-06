@@ -44,10 +44,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
 				{/* Main Content */}
 				<div className="flex-1 lg:ml-64 pt-16 lg:pt-0 pb-20">
-					{/* Global Search Bar */}
-					<div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/50 p-4">
-						<div className="max-w-4xl mx-auto">
-							<GlobalSearchBar className="w-full max-w-md" />
+					{/* Global Search Bar - Desktop Only */}
+					<div className="sticky top-1 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 p-4 hidden lg:block">
+						<div className="max-w-4xl mx-auto flex justify-center">
+							<GlobalSearchBar className="w-full max-w-lg" />
 						</div>
 					</div>
 
