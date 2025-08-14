@@ -344,7 +344,9 @@ export default function SearchPage() {
 						Connect to your music service to start searching
 					</p>
 				</div>
-				<Button>Connect Now</Button>
+				<Button onClick={() => { window.location.href = '/api/auth/login'; }}>
+					Connect Now
+				</Button>
 			</div>
 		);
 	}

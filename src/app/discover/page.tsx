@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface SpotifyArtist {
@@ -63,9 +65,9 @@ export default function DiscoverPage() {
 				<CardContent>
 					<div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
 						{loading ? (
-							Array.from({ length: 6 }).map((_, i) => (
+							Array.from({ length: 6 }).map(() => (
 								<div
-									key={`release-skel-${i}`}
+									key={`release-skel-${crypto.randomUUID()}`}
 									className="bg-muted rounded-lg aspect-square animate-pulse"
 								/>
 							))
@@ -79,37 +81,47 @@ export default function DiscoverPage() {
 							</div>
 						) : (
 							newReleases.map((release, index) => (
-								<div
+								<Link
 									key={`release-${release.id}-${index}`}
-									className="group cursor-pointer"
+									href={`/view/${encodeURIComponent(`https://open.spotify.com/album/${release.id}`)}`}
+									className="group music-card p-4 hover-lift animate-scale-in block cursor-pointer"
+									style={{ animationDelay: `${index * 0.07}s` }}
 								>
-									<div className="bg-muted rounded-lg aspect-square flex items-center justify-center mb-2 group-hover:bg-accent transition-colors shadow-sm overflow-hidden relative">
-										{release.images && release.images[0]?.url ? (
+									<div className="relative aspect-square rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-all">
+										{release.images?.[0]?.url ? (
 											<Image
 												src={release.images[0].url}
 												alt={release.name}
-												width={200}
-												height={200}
-												className="object-cover w-full h-full rounded-lg"
+												width={400}
+												height={400}
+												className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300 rounded-xl"
 												priority={false}
 												unoptimized={false}
 											/>
 										) : (
-											<div className="text-base">🆕</div>
+											<div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+												<div className="text-4xl opacity-50">🆕</div>
+											</div>
 										)}
+										{/* Hover overlay */}
+										<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+											<div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
+												<Play className="w-6 h-6 text-white" fill="currentColor" />
+											</div>
+										</div>
 									</div>
-									<h3 className="font-medium text-s truncate group-hover:text-primary">
-										{release.name}
-									</h3>
-									<p className="text-[10px] text-muted-foreground truncate">
-										{release.artists
-											?.map((a: { name: string }) => a.name)
-											.join(", ")}
-									</p>
-									<p className="text-[10px] text-muted-foreground">
-										{release.album_type}
-									</p>
-								</div>
+									<div className="space-y-1">
+										<h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+											{release.name}
+										</h3>
+										<p className="text-xs text-muted-foreground truncate">
+											{release.artists?.map((a: { name: string }) => a.name).join(", ")}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											{release.album_type}
+										</p>
+									</div>
+								</Link>
 							))
 						)}
 					</div>
