@@ -346,7 +346,11 @@ export default function SearchQueryPage({ params }: SearchQueryPageProps) {
 						Connect to your music service to start searching
 					</p>
 				</div>
-				<Button onClick={() => { window.location.href = '/api/auth/login'; }}>
+				<Button
+					onClick={() => {
+						window.location.href = "/api/auth/login";
+					}}
+				>
 					Connect Now
 				</Button>
 			</div>

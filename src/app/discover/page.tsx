@@ -106,7 +106,10 @@ export default function DiscoverPage() {
 										{/* Hover overlay */}
 										<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
 											<div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
-												<Play className="w-6 h-6 text-white" fill="currentColor" />
+												<Play
+													className="w-6 h-6 text-white"
+													fill="currentColor"
+												/>
 											</div>
 										</div>
 									</div>
@@ -115,7 +118,9 @@ export default function DiscoverPage() {
 											{release.name}
 										</h3>
 										<p className="text-xs text-muted-foreground truncate">
-											{release.artists?.map((a: { name: string }) => a.name).join(", ")}
+											{release.artists
+												?.map((a: { name: string }) => a.name)
+												.join(", ")}
 										</p>
 										<p className="text-xs text-muted-foreground">
 											{release.album_type}
