@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useWebSocket } from "@/components/WebSocketProvider";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { RightSidebar } from "@/components/RightSidebar";
 import { Play } from "lucide-react";
 
 type RecentTrack = {
@@ -280,9 +279,6 @@ export default function HomePage() {
 					</div>
 				</div>
 			</div>
-
-			{/* Right Sidebar - Now Playing & Queue */}
-			<RightSidebar />
 		</div>
 	);
 }

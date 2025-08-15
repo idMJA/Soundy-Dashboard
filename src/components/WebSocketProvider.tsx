@@ -26,6 +26,7 @@ interface Track {
 	artwork?: string;
 	isStream?: boolean;
 	position?: number;
+	albumName: string;
 }
 
 interface PlayerState {

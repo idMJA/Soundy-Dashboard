@@ -104,28 +104,19 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 	const handlePlayPlaylist = () => {
 		if (!connected || !userContext.userId || !playlist) return;
 
-		// Play the first track, then queue the rest
-		if (playlist.tracks.length > 0) {
-			handlePlayTrack(playlist.tracks[0]);
+		const guildId = userContext.guildId;
+		const channelId = userContext.voiceChannelId;
+		const userId = userContext.userId;
 
-			// Add remaining tracks to queue
-			playlist.tracks.slice(1).forEach((track) => {
-				const guildId = userContext.guildId;
-				const channelId = userContext.voiceChannelId;
-				const userId = userContext.userId;
-
-				if (userId && ((guildId && channelId) || !guildId)) {
-					const command = {
-						type: "add",
-						query: track.url,
-						userId,
-						...(guildId && { guildId }),
-						...(channelId && { voiceChannelId: channelId }),
-					};
-
-					sendCommand(command);
-				}
-			});
+		if (userId && ((guildId && channelId) || !guildId)) {
+			const command = {
+				type: "load-playlist",
+				playlistId: playlist.id,
+				userId,
+				...(guildId && { guildId }),
+				...(channelId && { voiceChannelId: channelId }),
+			};
+			sendCommand(command);
 		}
 	};
 
@@ -395,28 +386,23 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 												<Button
 													variant="ghost"
 													size="sm"
+													onClick={() => handlePlayTrack(track)}
+													className="text-green-500 hover:text-green-700"
+												>
+													<Play className="w-4 h-4" />
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
 													onClick={(e) => {
 														e.stopPropagation();
 														handleRemoveTrack(track);
 													}}
-													className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
+													className="text-red-500 hover:text-red-700"
 												>
 													<Trash2 className="w-4 h-4" />
 												</Button>
-												<div className="opacity-0 group-hover:opacity-100 transition-opacity">
-													<Play className="w-4 h-4" />
-												</div>
 											</div>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Button
-												variant="outline"
-												size="icon"
-												onClick={() => handleRemoveTrack(track)}
-												className="rounded-full"
-											>
-												<Trash2 className="w-4 h-4" />
-											</Button>
 										</div>
 									</div>
 								);

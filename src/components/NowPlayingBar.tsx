@@ -6,6 +6,7 @@ import { useWebSocket } from "./WebSocketProvider";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
+import { LyricsDialog } from "./LyricsDialog";
 
 interface WebSocketCommand {
 	type: string;
@@ -234,6 +235,8 @@ export const NowPlayingBar = () => {
 						>
 							<SkipIcon className="w-5 h-5" />
 						</Button>
+
+						<LyricsDialog />
 					</div>
 
 					{/* Progress Bar */}

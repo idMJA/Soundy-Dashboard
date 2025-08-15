@@ -47,6 +47,20 @@ export const RightSidebar: React.FC = () => {
 		}
 	};
 
+	// Fungsi untuk repeat
+	const handleRepeat = () => {
+		const guildId = userContext.guildId;
+		if (!guildId) return;
+		sendCommand({ type: "repeat", guildId } as WebSocketCommand);
+	};
+
+	// Fungsi untuk shuffle
+	const handleShuffle = () => {
+		const guildId = userContext.guildId;
+		if (!guildId) return;
+		sendCommand({ type: "shuffle", guildId } as WebSocketCommand);
+	};
+
 	const isDisabled =
 		!connected || (!userContext.guildId && !userContext.userId);
 
@@ -171,6 +185,8 @@ export const RightSidebar: React.FC = () => {
 								size="sm"
 								className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
 								title="Shuffle"
+								onClick={handleShuffle}
+								disabled={isDisabled}
 							>
 								<Shuffle className="w-4 h-4" />
 							</Button>
@@ -179,6 +195,8 @@ export const RightSidebar: React.FC = () => {
 								size="sm"
 								className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
 								title="Repeat"
+								onClick={handleRepeat}
+								disabled={isDisabled}
 							>
 								<Repeat className="w-4 h-4" />
 							</Button>
