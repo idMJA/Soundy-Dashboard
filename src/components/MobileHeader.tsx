@@ -1,7 +1,5 @@
 "use client";
 
-import { GlobalSearchBar } from "@/components/GlobalSearchBar";
-
 interface MobileHeaderProps {
 	onMenuToggle: () => void;
 }
@@ -32,18 +30,12 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuToggle }) => {
 						<MenuIcon className="w-6 h-6" />
 					</button>
 					<div className="flex items-center space-x-3">
-						<div className="w-8 h-8 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
-							<div className="text-white text-lg">🎵</div>
-						</div>
 						<div>
 							<h1 className="text-lg font-bold text-foreground">Soundy</h1>
-							<p className="text-xs text-muted-foreground">Music Dashboard</p>
 						</div>
 					</div>
 				</div>
 				<div className="flex items-center gap-3">
-					{/* Mobile Search Button */}
-					<GlobalSearchBar variant="compact" className="max-w-none" />
 					<div className="flex items-center gap-2">
 						<div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
 						<span className="text-xs text-muted-foreground">Live</span>

@@ -119,16 +119,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 					<div className="p-6 border-b border-sidebar-border/30">
 						<div className="flex items-center justify-between">
 							<div className="flex items-center space-x-3">
-								<div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
-									<Music className="w-5 h-5 text-white" />
-								</div>
 								<div>
 									<span className="text-xl font-bold text-sidebar-foreground">
 										Soundy
 									</span>
-									<div className="text-xs text-sidebar-foreground/60">
-										Music Dashboard
-									</div>
 								</div>
 							</div>
 							<ThemeToggle />

@@ -70,23 +70,32 @@ export default function HomePage() {
 								<div className="flex items-center gap-2">
 									<div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
 									<p className="text-sm text-muted-foreground font-medium">
-										Welcome back
+										{userContext?.globalName
+											? `Welcome back, ${userContext.globalName}`
+											: "Welcome back"}
 									</p>
 								</div>
-								<h1 className="text-6xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-									Good morning
+								<h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold bg-gradient-to-r from-primary via-foreground to-foreground/70 bg-clip-text text-transparent drop-shadow-lg transition-all duration-500">
+									{(() => {
+										const hour = new Date().getHours();
+										if (hour < 5) return "Good night";
+										if (hour < 12) return "Good morning";
+										if (hour < 18) return "Good afternoon";
+										return "Good evening";
+									})()}
 								</h1>
-								<p className="text-lg text-muted-foreground max-w-md leading-relaxed">
+								<p className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed">
 									Let&apos;s start your music journey with personalized
-									recommendations and seamless control
+									recommendations and seamless control.
 								</p>
-							</div>
-							<div className="flex items-center space-x-3">
-								<div className="gradient-primary text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105">
-									🎵 Discord Music Bot
-								</div>
-								<div className="glass px-5 py-2.5 rounded-full text-sm font-medium">
-									⚡ Real-time Control
+								<div className="mt-4">
+									<Button
+										size="lg"
+										className="px-8 py-4 text-base md:text-lg font-semibold rounded-full shadow-lg bg-gradient-to-r from-primary to-foreground/80 hover:from-primary/80 hover:to-foreground/90 transition-all duration-300"
+										onClick={() => router.push("/discover")}
+									>
+										Discover New Music
+									</Button>
 								</div>
 							</div>
 						</div>
@@ -238,7 +247,7 @@ export default function HomePage() {
 									aria-label={`View details for ${track.title || track.name || "Unknown Title"} by ${track.artist || track.author || "Unknown Artist"}`}
 									type="button"
 								>
-									<div className="relative aspect-square rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-all">
+									<div className="relative aspect-square rounded-xl overflow-hidden mb-2 shadow-md group-hover:shadow-lg transition-all">
 										{track.artwork ? (
 											<Image
 												src={track.artwork}

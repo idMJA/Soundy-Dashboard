@@ -1,6 +1,11 @@
 "use client";
 
 import { useWebSocket } from "./WebSocketProvider";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export const ConnectionPanel = () => {
 	const { connected, userContext, disconnect } = useWebSocket();
@@ -10,81 +15,86 @@ export const ConnectionPanel = () => {
 	};
 
 	return (
-		<div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-			<h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-				Connection
-			</h2>
-
-			{connected ? (
-				<div className="space-y-4">
-					<div className="flex items-center gap-2">
-						<div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-						<span className="text-green-600 dark:text-green-400 font-medium">
-							Connected
-						</span>
-					</div>
-
-					{userContext.userId && (
-						<div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
-							<div className="text-sm">
-								<span className="font-medium text-gray-700 dark:text-gray-300">
-									User ID:
-								</span>
-								<span className="ml-2 text-gray-600 dark:text-gray-400">
-									{userContext.userId}
-								</span>
-							</div>
-							{userContext.guildId && (
-								<div className="text-sm">
-									<span className="font-medium text-gray-700 dark:text-gray-300">
-										Guild ID:
-									</span>
-									<span className="ml-2 text-gray-600 dark:text-gray-400">
-										{userContext.guildId}
-									</span>
-								</div>
-							)}
-							{userContext.voiceChannelId && (
-								<div className="text-sm">
-									<span className="font-medium text-gray-700 dark:text-gray-300">
-										Voice Channel:
-									</span>
-									<span className="ml-2 text-gray-600 dark:text-gray-400">
-										{userContext.voiceChannelId}
-									</span>
-								</div>
-							)}
+		<Card className="w-full max-w-md mx-auto">
+			<CardHeader>
+				<CardTitle>Connection</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{connected ? (
+					<>
+						<div className="flex items-center gap-2">
+							<span className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+							<Badge
+								variant="secondary"
+								className="text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900 border-none"
+							>
+								Connected
+							</Badge>
 						</div>
-					)}
-
-					<button
-						type="button"
-						onClick={disconnect}
-						className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-					>
-						Disconnect
-					</button>
-				</div>
-			) : (
-				<div className="space-y-4">
-					<div className="flex items-center gap-2">
-						<div className="w-3 h-3 bg-gray-400 rounded-full" />
-						<span className="text-gray-500 dark:text-gray-400 font-medium">
-							Disconnected
-						</span>
-					</div>
-					<div className="text-gray-500 dark:text-gray-400 text-sm">
-						Please log in with Discord to connect.
-					</div>
-					<button
-						type="button"
-						onClick={handleLogin}
-						className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-					>
-						Login with Discord
-					</button>
-				</div>
-			)}
-		</div>
+						<Separator />
+						{userContext.userId && (
+							<div className="flex items-center gap-3">
+								<Avatar>
+									{userContext.avatar ? (
+										<AvatarImage
+											src={userContext.avatar}
+											alt={userContext.globalName || "User"}
+										/>
+									) : (
+										<AvatarFallback>
+											{userContext.globalName ? userContext.globalName[0] : "U"}
+										</AvatarFallback>
+									)}
+								</Avatar>
+								<div className="space-y-0.5">
+									<div className="font-semibold text-base text-foreground">
+										{userContext.globalName || "User"}
+									</div>
+									<div className="text-xs text-muted-foreground break-all">
+										ID: {userContext.userId}
+									</div>
+									{userContext.guildId && (
+										<div className="text-xs text-muted-foreground break-all">
+											Guild: {userContext.guildId}
+										</div>
+									)}
+									{userContext.voiceChannelId && (
+										<div className="text-xs text-muted-foreground break-all">
+											Voice Channel: {userContext.voiceChannelId}
+										</div>
+									)}
+								</div>
+							</div>
+						)}
+						<Button
+							variant="destructive"
+							className="w-full mt-2"
+							onClick={disconnect}
+						>
+							Disconnect
+						</Button>
+					</>
+				) : (
+					<>
+						<div className="flex items-center gap-2">
+							<span className="w-3 h-3 bg-border rounded-full" />
+							<Badge
+								variant="outline"
+								className="text-muted-foreground border-border"
+							>
+								Disconnected
+							</Badge>
+						</div>
+						<Separator />
+						<div className="text-muted-foreground text-sm">
+							Please log in with Discord to connect.
+						</div>
+						<Button variant="default" className="w-full" onClick={handleLogin}>
+							Login with Discord
+						</Button>
+					</>
+				)}
+			</CardContent>
+		</Card>
 	);
 };

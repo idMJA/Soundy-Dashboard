@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import Image from "next/image";
 import { useWebSocket } from "./WebSocketProvider";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -161,58 +160,10 @@ export const NowPlayingBar = () => {
 
 	return (
 		<div className="fixed bottom-0 left-0 lg:left-64 right-0 glass border-t border-border/50 backdrop-blur-xl shadow-modern-xl animate-slide-up">
-			<div className="flex items-center justify-between p-6 gap-6">
-				{/* Track Info */}
-				<div className="flex items-center space-x-4 flex-1 min-w-0">
-					<div className="relative">
-						{track.artwork ? (
-							<div className="w-14 h-14 rounded-xl overflow-hidden bg-muted flex-shrink-0 shadow-lg relative">
-								<Image
-									src={track.artwork}
-									alt={`${track.title} artwork`}
-									width={56}
-									height={56}
-									className="w-full h-full object-cover"
-									unoptimized
-								/>
-								{playerState.playing && (
-									<div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-										<div className="playing-bars">
-											<div className="bar bg-white"></div>
-											<div className="bar bg-white"></div>
-											<div className="bar bg-white"></div>
-											<div className="bar bg-white"></div>
-										</div>
-									</div>
-								)}
-							</div>
-						) : (
-							<div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 shadow-lg">
-								<div className="text-2xl">🎵</div>
-							</div>
-						)}
-					</div>
-					<div className="min-w-0 flex-1">
-						<h4 className="font-semibold text-card-foreground truncate text-base">
-							{track.title}
-						</h4>
-						<p className="text-sm text-muted-foreground truncate">
-							{track.author}
-						</p>
-						{playerState.playing && (
-							<div className="flex items-center gap-2 mt-1">
-								<div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-								<span className="text-xs text-primary font-medium">
-									Now Playing
-								</span>
-							</div>
-						)}
-					</div>
-				</div>
-
-				{/* Player Controls */}
-				<div className="flex flex-col items-center space-y-3 flex-1 max-w-md">
-					<div className="flex items-center space-x-4">
+			<div className="flex items-center justify-between p-4 gap-6">
+				{/* Player Controls - Centered */}
+				<div className="flex flex-col items-center space-y-3 flex-1 max-w-2xl justify-center mx-auto">
+					<div className="flex items-center space-x-4 justify-center">
 						<Button
 							onClick={handlePlayPause}
 							disabled={isDisabled}
@@ -241,7 +192,7 @@ export const NowPlayingBar = () => {
 
 					{/* Progress Bar */}
 					{track.duration && (
-						<div className="hidden md:flex items-center space-x-3 text-sm text-muted-foreground w-full max-w-md">
+						<div className="hidden md:flex items-center space-x-3 text-sm text-muted-foreground w-full max-w-2xl mx-auto">
 							<span className="text-xs font-mono min-w-[35px]">
 								{formatTime((track.position || 0) / 1000)}
 							</span>
@@ -262,10 +213,10 @@ export const NowPlayingBar = () => {
 					)}
 				</div>
 
-				{/* Volume Control */}
-				<div className="hidden lg:flex items-center space-x-3 flex-1 justify-end max-w-32">
+				{/* Volume Control - Extended */}
+				<div className="hidden lg:flex items-center space-x-3 flex-1 justify-end max-w-xs">
 					<VolumeIcon className="w-5 h-5 text-muted-foreground" />
-					<div className="flex-1 max-w-24">
+					<div className="flex-1 max-w-64">
 						<Slider
 							value={localVolume}
 							onValueChange={handleVolumeChange}

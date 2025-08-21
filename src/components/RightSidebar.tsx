@@ -218,7 +218,7 @@ export const RightSidebar: React.FC = () => {
 
 				<ScrollArea className="flex-1 px-4 custom-scrollbar">
 					{playerState.queue.length > 0 ? (
-						<div className="space-y-1 py-3">
+						<div className="space-y-1 py-3 max-h-[60vh] overflow-y-auto pr-2">
 							{playerState.queue.map((track, index) => (
 								<div
 									key={`${track.title}-${track.author}-${index}`}
