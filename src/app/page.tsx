@@ -119,14 +119,14 @@ export default function HomePage() {
 								link: "/liked",
 								description: "Your favorite tracks",
 							},
-							{
-								name: "Daily Mixes",
-								color:
-									"bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500",
-								icon: "🎧",
-								link: "/mixes",
-								description: "Curated for you",
-							},
+							// {
+							// 	name: "Daily Mixes",
+							// 	color:
+							// 		"bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500",
+							// 	icon: "🎧",
+							// 	link: "/mixes",
+							// 	description: "Curated for you",
+							// },
 							{
 								name: "Your Playlists",
 								color:
