@@ -24,7 +24,6 @@ const LyricsIcon = ({ className }: { className?: string }) => (
 	</svg>
 );
 
-// Memoize SyncedLyrics to prevent unnecessary re-renders
 const MemoizedSyncedLyrics = memo(SyncedLyrics);
 
 export function LyricsDialog() {
@@ -33,7 +32,6 @@ export function LyricsDialog() {
 	const [lastTrackId, setLastTrackId] = useState<string | undefined>(undefined);
 	const track = playerState.track;
 
-	// Only close dialog if the track actually changes (not on every update)
 	useEffect(() => {
 		if (!track) return;
 		const trackId = `${track.title}__${track.author}__${track.duration}`;
@@ -56,16 +54,23 @@ export function LyricsDialog() {
 					<LyricsIcon className="w-5 h-5" />
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="max-w-3xl h-[80vh]">
-				<DialogHeader>
+			<DialogContent className="max-w-4xl h-[85vh] p-0">
+				<DialogHeader className="px-6 py-4 border-b border-border/50">
 					<DialogTitle className="flex justify-between items-center">
-						<span>
-							Lyrics: {track?.title ? track.title : "Unknown"} -{" "}
-							{track?.author ? track.author : "Unknown Artist"}
-						</span>
+						<div className="flex flex-col gap-1">
+							<span className="text-lg font-semibold">
+								{track?.title || "Unknown"}
+							</span>
+							<span className="text-sm text-muted-foreground font-normal">
+								by {track?.author || "Unknown Artist"}
+							</span>
+						</div>
+						<div className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded-full">
+							Apple Music-style
+						</div>
 					</DialogTitle>
 				</DialogHeader>
-				<div className="h-[calc(80vh-7rem)]">
+				<div className="h-[calc(85vh-5rem)] overflow-hidden">
 					<MemoizedSyncedLyrics />
 				</div>
 			</DialogContent>

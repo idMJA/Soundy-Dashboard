@@ -99,7 +99,7 @@ export default function SettingsPage() {
 			</div>
 
 			{/* Quick Actions */}
-			<Card
+			{/* <Card
 				className="hover-lift animate-slide-up"
 				style={{ animationDelay: "0.4s" }}
 			>
@@ -161,7 +161,7 @@ export default function SettingsPage() {
 						</button>
 					</div>
 				</CardContent>
-			</Card>
+			</Card> */}
 		</div>
 	);
 }

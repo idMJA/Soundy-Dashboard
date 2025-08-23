@@ -92,15 +92,13 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 	const clearLogs = useCallback(() => {
 		setLogs([]);
 	}, []);
-	// Function to request current status and queue
+
 	const requestStatusAndQueue = useCallback(() => {
 		if (ws && ws.readyState === WebSocket.OPEN && userContext.guildId) {
 			setLastUpdateTime(new Date());
 
-			// Request status
 			ws.send(JSON.stringify({ type: "status", guildId: userContext.guildId }));
 
-			// Request queue if we have userId
 			if (userContext.userId) {
 				const queueCommand: Record<string, unknown> = {
 					type: "queue",
@@ -133,7 +131,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		[ws, addLog],
 	);
 
-	// 1. disconnectWebSocketOnly
 	const disconnectWebSocketOnly = useCallback(() => {
 		if (ws) {
 			ws.close();
@@ -142,7 +139,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		setUserContext({});
 	}, [ws]);
 
-	// 2. connect
 	const connect = useCallback(
 		(
 			userId?: string,
@@ -150,7 +146,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 			avatar?: string,
 			globalName?: string,
 		) => {
-			// Only reconnect if userId is different from lastConnectedUserId
 			if (
 				lastConnectedUserId.current === userId &&
 				ws &&
@@ -160,7 +155,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 				return;
 			}
 
-			// Prevent rapid reconnections
 			if (ws && ws.readyState === WebSocket.CONNECTING) {
 				addLog("WebSocket already connecting, please wait...");
 				return;
@@ -196,7 +190,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 							case "user-connect":
 								if (data.success) {
 									setUserContext((prev) => ({
-										...prev, // Keep existing userId
+										...prev,
 										guildId: data.guildId,
 										voiceChannelId: data.voiceChannelId,
 										userId: data.userId || prev.userId,
@@ -262,7 +256,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 							case "stop":
 								if (data.success) {
 									addLog(`${data.type} command successful`);
-									// The server should send updated status automatically
 								} else {
 									addLog(
 										`${data.type} command failed: ${data.error || "Unknown error"}`,
@@ -270,7 +263,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 								}
 								break;
 							default:
-								// Handle other message types
 								break;
 						}
 					} catch {
@@ -297,7 +289,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		[ws, addLog],
 	);
 
-	// 3. refreshUser
 	const refreshUser = useCallback(async () => {
 		try {
 			const res = await fetch("/api/auth/me");
@@ -342,7 +333,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		};
 	}, [ws]);
 
-	// Auto-update status and queue every 1 seconds
 	useEffect(() => {
 		if (!autoUpdateEnabled || !connected || !userContext.guildId) {
 			return;
@@ -350,7 +340,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
 		const interval = setInterval(() => {
 			requestStatusAndQueue();
-		}, 1000); // 1 second instead of 5 seconds
+		}, 1000);
 
 		return () => {
 			clearInterval(interval);
@@ -361,11 +351,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		userContext.guildId,
 		requestStatusAndQueue,
 	]);
-	// Fix: add missing toggleAutoUpdate definition
+
 	const toggleAutoUpdate = useCallback(() => {
 		setAutoUpdateEnabled((prev) => !prev);
 	}, []);
-	// Expose a refreshUser function to re-fetch user info and reconnect
+
 	const value = {
 		ws,
 		connected,
@@ -383,7 +373,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		refreshUser,
 	};
 
-	// On mount, call refreshUser only once
 	useEffect(() => {
 		let mounted = true;
 		const initializeUser = async () => {
@@ -419,9 +408,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		return () => {
 			mounted = false;
 		};
-	}, [connect, disconnectWebSocketOnly]); // Include necessary dependencies
+	}, [connect, disconnectWebSocketOnly]);
 
-	// Poll /api/auth/me every 6 seconds to detect VC/guild changes and update WS
 	useEffect(() => {
 		const interval = setInterval(async () => {
 			try {
@@ -455,7 +443,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 					}
 				}
 			} catch {}
-		}, 6000); // 6 seconds instead of 30 seconds
+		}, 6000);
 		return () => clearInterval(interval);
 	}, [ws, userContext.guildId, userContext.voiceChannelId, addLog]);
 

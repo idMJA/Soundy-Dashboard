@@ -5,7 +5,7 @@ import { useWebSocket } from "./WebSocketProvider";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { LyricsDialog } from "./LyricsDialog";
+import { LyricsButton } from "./LyricsButton";
 
 interface WebSocketCommand {
 	type: string;
@@ -48,6 +48,18 @@ const SkipIcon = ({ className }: { className?: string }) => (
 	</svg>
 );
 
+const PreviousIcon = ({ className }: { className?: string }) => (
+	<svg
+		className={className || "w-5 h-5"}
+		fill="currentColor"
+		viewBox="0 0 24 24"
+		aria-label="Previous"
+	>
+		<title>Previous</title>
+		<path d="M19.75 17.307a.5.5 0 0 1-.75.433L10.5 13v4.75A1.25 1.25 0 0 1 9.25 19h-3.5A1.25 1.25 0 0 1 4.5 17.75V6.25A1.25 1.25 0 0 1 5.75 5h3.5A1.25 1.25 0 0 1 10.5 6.25V11l8.5-4.74a.5.5 0 0 1 .75.433v10.614Z" />
+	</svg>
+);
+
 const VolumeIcon = ({ className }: { className?: string }) => (
 	<svg
 		className={className || "w-5 h-5"}
@@ -64,7 +76,12 @@ const VolumeIcon = ({ className }: { className?: string }) => (
 export const NowPlayingBar = () => {
 	const { connected, userContext, playerState, sendCommand } = useWebSocket();
 	const [localVolume, setLocalVolume] = useState([playerState.volume]);
+	const [isSeeking, setIsSeeking] = useState(false);
+	const [seekPosition, setSeekPosition] = useState(0);
 	const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	const track = playerState.track;
 
 	// Sync local volume with player state
 	useEffect(() => {
@@ -129,6 +146,53 @@ export const NowPlayingBar = () => {
 		}
 	};
 
+	const handlePrevious = () => {
+		const guildId = userContext.guildId;
+		const userId = userContext.userId;
+
+		if (userId) {
+			const command: Record<string, unknown> = {
+				type: "previous",
+				userId,
+			};
+			if (guildId) command.guildId = guildId;
+
+			sendCommand(command as WebSocketCommand);
+		}
+	};
+
+	// Debounced seek handler
+	const handleSeek = useCallback(
+		(percentage: number) => {
+			if (!track?.duration) return;
+
+			const newPosition = (percentage / 100) * track.duration;
+			setSeekPosition(newPosition);
+			setIsSeeking(true);
+
+			if (seekTimeoutRef.current) {
+				clearTimeout(seekTimeoutRef.current);
+			}
+
+			seekTimeoutRef.current = setTimeout(() => {
+				const guildId = userContext.guildId;
+				const userId = userContext.userId;
+
+				if (userId) {
+					const command: Record<string, unknown> = {
+						type: "seek",
+						position: Math.floor(newPosition),
+					};
+					if (guildId) command.guildId = guildId;
+
+					sendCommand(command as WebSocketCommand);
+				}
+				setIsSeeking(false);
+			}, 300);
+		},
+		[track?.duration, userContext.guildId, userContext.userId, sendCommand],
+	);
+
 	const formatTime = (seconds: number) => {
 		const mins = Math.floor(seconds / 60);
 		const secs = Math.floor(seconds % 60);
@@ -137,7 +201,6 @@ export const NowPlayingBar = () => {
 
 	const isDisabled =
 		!connected || (!userContext.guildId && !userContext.userId);
-	const track = playerState.track;
 
 	if (!track) {
 		return (
@@ -165,6 +228,16 @@ export const NowPlayingBar = () => {
 				<div className="flex flex-col items-center space-y-3 flex-1 max-w-2xl justify-center mx-auto">
 					<div className="flex items-center space-x-4 justify-center">
 						<Button
+							onClick={handlePrevious}
+							disabled={isDisabled}
+							variant="ghost"
+							size="default"
+							className="rounded-full w-10 h-10 p-0 hover:bg-primary/10 hover:text-primary transition-all hover:scale-110"
+						>
+							<PreviousIcon className="w-5 h-5" />
+						</Button>
+
+						<Button
 							onClick={handlePlayPause}
 							disabled={isDisabled}
 							size="default"
@@ -187,23 +260,62 @@ export const NowPlayingBar = () => {
 							<SkipIcon className="w-5 h-5" />
 						</Button>
 
-						<LyricsDialog />
+						<LyricsButton disabled={isDisabled} />
 					</div>
 
 					{/* Progress Bar */}
 					{track.duration && (
 						<div className="hidden md:flex items-center space-x-3 text-sm text-muted-foreground w-full max-w-2xl mx-auto">
 							<span className="text-xs font-mono min-w-[35px]">
-								{formatTime((track.position || 0) / 1000)}
+								{formatTime(
+									isSeeking
+										? seekPosition / 1000
+										: (track.position || 0) / 1000,
+								)}
 							</span>
-							<div className="flex-1 relative">
+							<div
+								className="flex-1 relative cursor-pointer group"
+								onClick={(e) => {
+									if (isDisabled || !track?.duration) return;
+
+									const rect = e.currentTarget.getBoundingClientRect();
+									const x = e.clientX - rect.left;
+									const width = rect.width;
+									const percentage = Math.max(0, Math.min(1, x / width));
+									const newPosition = percentage * track.duration;
+
+									handleSeek(newPosition);
+								}}
+							>
 								<Progress
-									value={progressPercentage}
+									value={
+										isSeeking
+											? (seekPosition / track.duration) * 100
+											: progressPercentage
+									}
 									className="h-2 bg-muted/50"
 								/>
 								<div
 									className="absolute top-0 left-0 h-2 gradient-primary rounded-full transition-all"
-									style={{ width: `${progressPercentage}%` }}
+									style={{
+										width: `${
+											isSeeking
+												? (seekPosition / track.duration) * 100
+												: progressPercentage
+										}%`,
+									}}
+								/>
+								{/* Hover indicator */}
+								<div
+									className="absolute top-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none -translate-y-1/2"
+									style={{
+										left: `${
+											isSeeking
+												? (seekPosition / track.duration) * 100
+												: progressPercentage
+										}%`,
+										transform: "translateX(-50%) translateY(-50%)",
+									}}
 								/>
 							</div>
 							<span className="text-xs font-mono min-w-[35px]">

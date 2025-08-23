@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { SyncedLyricsLine } from "@/types/lyrics";
+import type { SyncedLyricsLine, LyricLine, LyricWord } from "@/types/lyrics";
 
 export interface LrcLibLyricsResponse {
 	id: number;
@@ -45,6 +45,40 @@ export function parseSyncedLyrics(syncedLyrics: string): SyncedLyricsLine[] {
 
 	// Sort by timestamp
 	return lines.sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Convert SyncedLyricsLine array to Apple Music-like lyrics LyricLine format
+ * @param syncedLines Array of synced lyrics lines
+ * @returns Array of LyricLine objects for Apple Music-like lyrics component
+ */
+export function convertToAppleMusicFormat(
+	syncedLines: SyncedLyricsLine[],
+): LyricLine[] {
+	if (!syncedLines || syncedLines.length === 0) return [];
+
+	return syncedLines.map((line, index) => {
+		const nextLine = syncedLines[index + 1];
+		const endTime = nextLine ? nextLine.time : line.time + 3000; // Default 3 seconds if no next line
+
+		const word: LyricWord = {
+			startTime: line.time,
+			endTime: endTime,
+			word: line.text || "♪",
+		};
+
+		const lyricLine: LyricLine = {
+			words: [word],
+			translatedLyric: "",
+			romanLyric: "",
+			startTime: line.time,
+			endTime: endTime,
+			isBG: false,
+			isDuet: false,
+		};
+
+		return lyricLine;
+	});
 }
 
 export async function fetchLyricsFromLrcLib({

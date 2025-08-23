@@ -32,13 +32,11 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 		xl: "w-full aspect-square",
 	};
 
-	// Update artwork only when track changes (not on every status update)
 	useEffect(() => {
 		const track = playerState.track;
 		const trackId = track ? `${track.title}-${track.author}` : null;
 		const newArtwork = track?.artwork;
 
-		// Only update if this is a different track (by title + author combination)
 		if (trackId && trackId !== lastTrackRef.current) {
 			lastTrackRef.current = trackId;
 
@@ -54,7 +52,6 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 				setCurrentArtwork(null);
 			}
 		} else if (!track && lastTrackRef.current) {
-			// Clear everything when no track is playing
 			console.log("🎵 No track playing, clearing artwork");
 			lastTrackRef.current = null;
 			setCurrentArtwork(null);

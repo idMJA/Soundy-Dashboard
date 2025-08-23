@@ -1,7 +1,11 @@
+import type { LyricLine, LyricWord } from "@applemusic-like-lyrics/core";
+
 export interface SyncedLyricsLine {
 	time: number; // Time in milliseconds
 	text: string;
 }
+
+export type { LyricLine, LyricWord };
 
 export interface LyricsData {
 	id: number;

@@ -13,6 +13,14 @@
 		"*": "bun format"
 	},
 	"dependencies": {
+		"@applemusic-like-lyrics/react": "^0.1.5",
+		"@pixi/app": "^7.4.3",
+		"@pixi/core": "^7.4.3",
+		"@pixi/display": "^7.4.3",
+		"@pixi/filter-blur": "^7.4.3",
+		"@pixi/filter-bulge-pinch": "^5.1.1",
+		"@pixi/filter-color-matrix": "^7.4.3",
+		"@pixi/sprite": "^7.4.3",
 		"@radix-ui/react-avatar": "^1.1.10",
 		"@radix-ui/react-dialog": "^1.1.15",
 		"@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -30,6 +38,8 @@
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"cmdk": "^1.1.1",
+		"jss": "^10.10.0",
+		"jss-preset-default": "^10.10.0",
 		"lucide-react": "^0.525.0",
 		"next": "^15.5.0",
 		"next-themes": "^0.4.6",
