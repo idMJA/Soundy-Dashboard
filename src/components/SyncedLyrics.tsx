@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useWebSocket } from "./WebSocketProvider";
 import {
 	fetchLyricsFromLrcLib,
@@ -8,9 +9,31 @@ import {
 	convertToAppleMusicFormat,
 } from "@/lib/lyrics";
 import type { LyricLine } from "@/types/lyrics";
-import { LyricPlayer } from "@applemusic-like-lyrics/react";
+
+// Dynamically import LyricPlayer only on client side
+const LyricPlayer = dynamic(
+	() =>
+		import("@applemusic-like-lyrics/react").then((mod) => ({
+			default: mod.LyricPlayer,
+		})),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="flex items-center justify-center h-full">
+				<div className="text-center space-y-3">
+					<div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+						<span className="text-2xl">🎵</span>
+					</div>
+					<p className="text-muted-foreground">Loading lyrics player...</p>
+				</div>
+			</div>
+		),
+	},
+);
 
 const cleanExpiredCache = () => {
+	if (typeof window === "undefined") return;
+
 	try {
 		const keys = Object.keys(localStorage);
 		const now = Date.now();
@@ -81,20 +104,22 @@ export function SyncedLyrics() {
 			}
 
 			try {
-				const cachedData = localStorage.getItem(`lyrics_${trackId}`);
-				const expiryData = localStorage.getItem(`lyrics_${trackId}_expiry`);
+				if (typeof window !== "undefined") {
+					const cachedData = localStorage.getItem(`lyrics_${trackId}`);
+					const expiryData = localStorage.getItem(`lyrics_${trackId}_expiry`);
 
-				if (cachedData && expiryData) {
-					const expiry = parseInt(expiryData);
-					if (expiry > Date.now()) {
-						const cachedLyrics = JSON.parse(cachedData) as LyricLine[];
-						setLyrics(cachedLyrics);
-						setLastFetchedTrackId(trackId);
-						setInitialSyncDone(false); // Reset initial sync untuk cache
-						return;
-					} else {
-						localStorage.removeItem(`lyrics_${trackId}`);
-						localStorage.removeItem(`lyrics_${trackId}_expiry`);
+					if (cachedData && expiryData) {
+						const expiry = parseInt(expiryData);
+						if (expiry > Date.now()) {
+							const cachedLyrics = JSON.parse(cachedData) as LyricLine[];
+							setLyrics(cachedLyrics);
+							setLastFetchedTrackId(trackId);
+							setInitialSyncDone(false); // Reset initial sync untuk cache
+							return;
+						} else {
+							localStorage.removeItem(`lyrics_${trackId}`);
+							localStorage.removeItem(`lyrics_${trackId}_expiry`);
+						}
 					}
 				}
 			} catch {}
@@ -132,15 +157,17 @@ export function SyncedLyrics() {
 				}
 
 				try {
-					localStorage.setItem(
-						`lyrics_${trackId}`,
-						JSON.stringify(appleMusicLyrics),
-					);
+					if (typeof window !== "undefined") {
+						localStorage.setItem(
+							`lyrics_${trackId}`,
+							JSON.stringify(appleMusicLyrics),
+						);
 
-					localStorage.setItem(
-						`lyrics_${trackId}_expiry`,
-						(Date.now() + 10 * 1000).toString(),
-					);
+						localStorage.setItem(
+							`lyrics_${trackId}_expiry`,
+							(Date.now() + 10 * 1000).toString(),
+						);
+					}
 				} catch {}
 
 				setLyrics(appleMusicLyrics);
