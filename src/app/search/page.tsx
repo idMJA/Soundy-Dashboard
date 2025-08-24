@@ -346,7 +346,7 @@ export default function SearchPage() {
 				</div>
 				<Button
 					onClick={() => {
-						window.location.href = "/api/auth/login";
+						router.push("/api/auth/login");
 					}}
 				>
 					Connect Now

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { useWebSocket } from "./WebSocketProvider";
 import { MusicArtwork } from "./MusicArtwork";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface WebSocketCommand {
 }
 
 export const RightSidebar: React.FC = () => {
+	const router = useRouter();
 	const { connected, userContext, playerState, sendCommand } = useWebSocket();
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -288,7 +290,7 @@ export const RightSidebar: React.FC = () => {
 								size="sm"
 								className="mt-4 hover:bg-primary hover:text-primary-foreground"
 								onClick={() => {
-									window.location.href = "/search";
+									router.push("/search");
 								}}
 							>
 								<Music className="w-4 h-4 mr-2" />

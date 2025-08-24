@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
 	Search,
 	X,
@@ -101,6 +102,7 @@ interface SearchClientProps {
 }
 
 export default function SearchClient({ initialQuery }: SearchClientProps) {
+	const router = useRouter();
 	const decodedQuery = decodeURIComponent(initialQuery);
 	const { connected, userContext, sendCommand } = useWebSocket();
 	const [query, setQuery] = useState(decodedQuery || "");
@@ -346,7 +348,7 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 				</div>
 				<Button
 					onClick={() => {
-						window.location.href = "/api/auth/login";
+						router.push("/api/auth/login");
 					}}
 				>
 					Connect Now

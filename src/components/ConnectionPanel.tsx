@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useRouter } from "next/router";
 
 export const ConnectionPanel = () => {
+	const router = useRouter();
 	const { connected, userContext, disconnect } = useWebSocket();
 
 	const handleLogin = () => {
-		window.location.href = "/api/auth/login";
+		router.push("/api/auth/login");
 	};
 
 	return (
