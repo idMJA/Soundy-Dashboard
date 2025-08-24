@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useWebSocket } from "./WebSocketProvider";
 import { MusicArtwork } from "./MusicArtwork";
 import { Button } from "@/components/ui/button";
