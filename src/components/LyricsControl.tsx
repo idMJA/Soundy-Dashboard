@@ -28,7 +28,6 @@ export function LyricsControl({ disabled, mode = "page" }: LyricsControlProps) {
 		if (mode === "page") {
 			router.push("/lyrics");
 		}
-		// Dialog mode will be handled by LyricsDialog component itself
 	};
 
 	if (mode === "dialog") {
@@ -63,7 +62,6 @@ export function LyricsControl({ disabled, mode = "page" }: LyricsControlProps) {
 	);
 }
 
-// Keep the original LyricsButton for backward compatibility
 export const LyricsButton = ({ disabled }: { disabled: boolean }) => (
 	<LyricsControl disabled={disabled} mode="page" />
 );

@@ -78,17 +78,24 @@ export const NowPlayingBar = () => {
 	const [localVolume, setLocalVolume] = useState([playerState.volume]);
 	const [isSeeking, setIsSeeking] = useState(false);
 	const [seekPosition, setSeekPosition] = useState(0);
+	const [pausedPosition, setPausedPosition] = useState<number | null>(null);
 	const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	const track = playerState.track;
 
-	// Sync local volume with player state
 	useEffect(() => {
 		setLocalVolume([playerState.volume]);
 	}, [playerState.volume]);
 
-	// Debounced volume change handler
+	useEffect(() => {
+		if (playerState.playing) {
+			setPausedPosition(null);
+		} else if (track?.position && pausedPosition === null) {
+			setPausedPosition(track.position);
+		}
+	}, [playerState.playing, track?.position, pausedPosition]);
+
 	const handleVolumeChange = useCallback(
 		(value: number[]) => {
 			setLocalVolume(value);
@@ -161,7 +168,6 @@ export const NowPlayingBar = () => {
 		}
 	};
 
-	// Debounced seek handler
 	const handleSeek = useCallback(
 		(percentage: number) => {
 			if (!track?.duration) return;
@@ -217,8 +223,16 @@ export const NowPlayingBar = () => {
 		);
 	}
 
+	const getCurrentPosition = () => {
+		if (isSeeking) return seekPosition;
+		if (!playerState.playing && pausedPosition !== null) {
+			return pausedPosition;
+		}
+		return track?.position || 0;
+	};
+
 	const progressPercentage = track.duration
-		? ((track.position || 0) / track.duration) * 100
+		? (getCurrentPosition() / track.duration) * 100
 		: 0;
 
 	return (
@@ -267,14 +281,11 @@ export const NowPlayingBar = () => {
 					{track.duration && (
 						<div className="hidden md:flex items-center space-x-3 text-sm text-muted-foreground w-full max-w-2xl mx-auto">
 							<span className="text-xs font-mono min-w-[35px]">
-								{formatTime(
-									isSeeking
-										? seekPosition / 1000
-										: (track.position || 0) / 1000,
-								)}
+								{formatTime(getCurrentPosition() / 1000)}
 							</span>
-							<div
-								className="flex-1 relative cursor-pointer group"
+							<button
+								type="button"
+								className="flex-1 relative cursor-pointer group bg-transparent border-none p-0 outline-none"
 								onClick={(e) => {
 									if (isDisabled || !track?.duration) return;
 
@@ -286,6 +297,17 @@ export const NowPlayingBar = () => {
 
 									handleSeek(newPosition);
 								}}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										if (isDisabled || !track?.duration) return;
+
+										const newPosition = track.duration * 0.5;
+										handleSeek(newPosition);
+									}
+								}}
+								aria-label={`Seek to position in track`}
+								disabled={isDisabled}
 							>
 								<Progress
 									value={
@@ -317,7 +339,7 @@ export const NowPlayingBar = () => {
 										transform: "translateX(-50%) translateY(-50%)",
 									}}
 								/>
-							</div>
+							</button>
 							<span className="text-xs font-mono min-w-[35px]">
 								{formatTime(track.duration / 1000)}
 							</span>

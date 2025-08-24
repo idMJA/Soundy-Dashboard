@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useWebSocket } from "./WebSocketProvider";
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/lib/lyrics";
 import type { LyricLine } from "@/types/lyrics";
 
-// Dynamically import LyricPlayer only on client side
 const LyricPlayer = dynamic(
 	() =>
 		import("@applemusic-like-lyrics/react").then((mod) => ({
@@ -60,6 +59,8 @@ export function SyncedLyrics() {
 		null,
 	);
 	const [initialSyncDone, setInitialSyncDone] = useState<boolean>(false);
+	const [pausedPosition, setPausedPosition] = useState<number | null>(null);
+	const fetchingRef = useRef<string | null>(null);
 	const track = playerState.track;
 
 	const trackId = useMemo(() => {
@@ -67,13 +68,23 @@ export function SyncedLyrics() {
 		return `${track.title}__${track.author}__${Math.round((track.duration || 0) / 1000)}`;
 	}, [track?.title, track?.author, track?.duration]);
 
-	// Current time dengan logic untuk mencari lyric terdekat
+	useEffect(() => {
+		if (playerState.playing) {
+			setPausedPosition(null);
+		} else if (track?.position && pausedPosition === null) {
+			setPausedPosition(track.position);
+		}
+	}, [playerState.playing, track?.position, pausedPosition]);
+
 	const currentTime = useMemo(() => {
-		if (!track?.position || lyrics.length === 0) return 0;
+		let currentPos = track?.position || 0;
 
-		const currentPos = track.position;
+		if (!playerState.playing && pausedPosition !== null) {
+			currentPos = pausedPosition;
+		}
 
-		// Jika belum initial sync dan posisi > 5 detik, cari lyric terdekat
+		if (!currentPos || lyrics.length === 0) return 0;
+
 		if (!initialSyncDone && currentPos > 5000) {
 			let closestTime = 0;
 			for (let i = 0; i < lyrics.length; i++) {
@@ -84,59 +95,73 @@ export function SyncedLyrics() {
 					break;
 				}
 			}
-			// Set initial sync done setelah 2 detik
+
 			setTimeout(() => setInitialSyncDone(true), 2000);
 			return closestTime;
 		}
 
-		// Round untuk stability
 		return Math.floor(currentPos / 100) * 100;
-	}, [track?.position, lyrics, initialSyncDone]);
+	}, [
+		track?.position,
+		lyrics,
+		initialSyncDone,
+		playerState.playing,
+		pausedPosition,
+	]);
 
 	useEffect(() => {
 		cleanExpiredCache();
 
-		const fetchLyrics = async () => {
-			if (!track || !trackId) {
+		const fetchLyrics = async (
+			currentTrack: typeof track,
+			currentTrackId: string,
+		) => {
+			if (!currentTrack || !currentTrackId) {
 				setLyrics([]);
 				setError(null);
 				return;
 			}
 
+			if (
+				fetchingRef.current === currentTrackId ||
+				lastFetchedTrackId === currentTrackId
+			) {
+				return;
+			}
+
 			try {
 				if (typeof window !== "undefined") {
-					const cachedData = localStorage.getItem(`lyrics_${trackId}`);
-					const expiryData = localStorage.getItem(`lyrics_${trackId}_expiry`);
+					const cachedData = localStorage.getItem(`lyrics_${currentTrackId}`);
+					const expiryData = localStorage.getItem(
+						`lyrics_${currentTrackId}_expiry`,
+					);
 
 					if (cachedData && expiryData) {
-						const expiry = parseInt(expiryData);
+						const expiry = parseInt(expiryData, 10);
 						if (expiry > Date.now()) {
 							const cachedLyrics = JSON.parse(cachedData) as LyricLine[];
 							setLyrics(cachedLyrics);
-							setLastFetchedTrackId(trackId);
-							setInitialSyncDone(false); // Reset initial sync untuk cache
+							setLastFetchedTrackId(currentTrackId);
+							setInitialSyncDone(false);
 							return;
 						} else {
-							localStorage.removeItem(`lyrics_${trackId}`);
-							localStorage.removeItem(`lyrics_${trackId}_expiry`);
+							localStorage.removeItem(`lyrics_${currentTrackId}`);
+							localStorage.removeItem(`lyrics_${currentTrackId}_expiry`);
 						}
 					}
 				}
 			} catch {}
 
-			if (lastFetchedTrackId === trackId) {
-				return;
-			}
-
+			fetchingRef.current = currentTrackId;
 			setLoading(true);
 			setError(null);
 
 			try {
 				const lyricsData = await fetchLyricsFromLrcLib({
-					trackName: track.title,
-					artistName: track.author,
-					albumName: track.albumName || track.title,
-					duration: Math.round((track.duration || 0) / 1000),
+					trackName: currentTrack.title,
+					artistName: currentTrack.author,
+					albumName: currentTrack.albumName || currentTrack.title,
+					duration: Math.round((currentTrack.duration || 0) / 1000),
 				});
 
 				let appleMusicLyrics: LyricLine[] = [];
@@ -159,32 +184,33 @@ export function SyncedLyrics() {
 				try {
 					if (typeof window !== "undefined") {
 						localStorage.setItem(
-							`lyrics_${trackId}`,
+							`lyrics_${currentTrackId}`,
 							JSON.stringify(appleMusicLyrics),
 						);
-
 						localStorage.setItem(
-							`lyrics_${trackId}_expiry`,
-							(Date.now() + 10 * 1000).toString(),
+							`lyrics_${currentTrackId}_expiry`,
+							(Date.now() + 5 * 60 * 1000).toString(),
 						);
 					}
 				} catch {}
 
 				setLyrics(appleMusicLyrics);
-				setLastFetchedTrackId(trackId);
-				setInitialSyncDone(false); // Reset initial sync untuk track baru
+				setLastFetchedTrackId(currentTrackId);
+				setInitialSyncDone(false);
 			} catch (err) {
 				console.error("Error fetching lyrics:", err);
 				setError("Failed to fetch lyrics");
 				setLyrics([]);
 			} finally {
 				setLoading(false);
+				fetchingRef.current = null;
 			}
 		};
 
-		fetchLyrics();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [trackId]);
+		if (trackId && track) {
+			fetchLyrics(track, trackId);
+		}
+	}, [trackId, lastFetchedTrackId, track]);
 
 	if (!track) {
 		return (
