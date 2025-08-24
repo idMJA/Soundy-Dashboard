@@ -58,6 +58,7 @@
   },
   "trustedDependencies": [
     "@tailwindcss/oxide",
+    "sharp",
     "@biomejs/biome",
     "unrs-resolver",
   ],
