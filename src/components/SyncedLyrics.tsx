@@ -39,7 +39,7 @@ const cleanExpiredCache = () => {
 
 		keys.forEach((key) => {
 			if (key.endsWith("_expiry")) {
-				const expiry = parseInt(localStorage.getItem(key) || "0");
+				const expiry = parseInt(localStorage.getItem(key) || "0", 10);
 				if (expiry < now) {
 					const cacheKey = key.replace("_expiry", "");
 					localStorage.removeItem(key);
