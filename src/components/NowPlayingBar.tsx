@@ -169,10 +169,9 @@ export const NowPlayingBar = () => {
 	};
 
 	const handleSeek = useCallback(
-		(percentage: number) => {
+		(position: number) => {
 			if (!track?.duration) return;
-
-			const newPosition = (percentage / 100) * track.duration;
+			const newPosition = Math.max(0, Math.min(position, track.duration));
 			setSeekPosition(newPosition);
 			setIsSeeking(true);
 

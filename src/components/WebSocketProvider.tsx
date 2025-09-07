@@ -171,15 +171,23 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 				newWs.onopen = () => {
 					setConnected(true);
 					addLog("Connected to WebSocket");
-					setUserContext({});
+
 					if (userId) {
 						newWs.send(JSON.stringify({ type: "user-connect", userId }));
 						addLog(`Sent user-connect for userId: ${userId}`);
-						setUserContext((prev) => ({ ...prev, userId, avatar, globalName }));
+						setUserContext((prev) => ({
+							...prev,
+							...(userId ? { userId } : {}),
+							...(avatar ? { avatar } : {}),
+							...(globalName ? { globalName } : {}),
+						}));
 					} else if (guildId) {
 						newWs.send(JSON.stringify({ type: "join", guildId }));
 						addLog(`Sent join for guildId: ${guildId}`);
-						setUserContext((prev) => ({ ...prev, guildId }));
+						setUserContext((prev) => ({
+							...prev,
+							...(guildId ? { guildId } : {}),
+						}));
 					}
 				};
 				newWs.onmessage = (event) => {
@@ -291,7 +299,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
 	const refreshUser = useCallback(async () => {
 		try {
-			const res = await fetch("/api/auth/me");
+			const res = await fetch("/api/auth/me", { credentials: "include" });
 			if (res.ok) {
 				const data = await res.json();
 				if (data?.user?.id) {
@@ -378,7 +386,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		const initializeUser = async () => {
 			if (mounted) {
 				try {
-					const res = await fetch("/api/auth/me");
+					const res = await fetch("/api/auth/me", { credentials: "include" });
 					if (res.ok) {
 						const data = await res.json();
 						if (data?.user?.id) {
@@ -413,7 +421,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 	useEffect(() => {
 		const interval = setInterval(async () => {
 			try {
-				const res = await fetch("/api/auth/me");
+				const res = await fetch("/api/auth/me", { credentials: "include" });
 				if (res.ok) {
 					const data = await res.json();
 					const newUserId = data?.user?.id;

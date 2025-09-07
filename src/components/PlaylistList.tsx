@@ -40,13 +40,14 @@ export const PlaylistList = () => {
 	const [newPlaylistName, setNewPlaylistName] = useState("");
 	const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
 
-	// Fetch current user - only once
 	useEffect(() => {
 		let mounted = true;
 		const fetchCurrentUser = async () => {
 			if (!mounted) return;
 			try {
-				const response = await fetch("/api/auth/me");
+				const response = await fetch("/api/auth/me", {
+					credentials: "include",
+				});
 				if (response.ok && mounted) {
 					const data = await response.json();
 					if (data.success && data.user) {
@@ -63,7 +64,7 @@ export const PlaylistList = () => {
 		return () => {
 			mounted = false;
 		};
-	}, []); // Empty dependency array - run only once
+	}, []);
 
 	useEffect(() => {
 		const fetchPlaylists = async () => {
@@ -117,7 +118,7 @@ export const PlaylistList = () => {
 					setNewPlaylistName("");
 					setIsCreateDialogOpen(false);
 					setError(null);
-					// Refresh playlist list
+
 					const res = await fetch(`/api/playlist/list/${currentUser.id}`);
 					if (res.ok) {
 						const data = await res.json();
@@ -129,7 +130,6 @@ export const PlaylistList = () => {
 					setError(errorMsg);
 				}
 			} else {
-				// Handle non-200 status codes
 				try {
 					const responseData = await response.json();
 					const errorMsg =
@@ -170,7 +170,6 @@ export const PlaylistList = () => {
 			});
 
 			if (response.ok) {
-				// Refresh playlist list
 				const res = await fetch(`/api/playlist/list/${currentUser.id}`);
 				if (res.ok) {
 					const data = await res.json();

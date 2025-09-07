@@ -234,7 +234,7 @@ export default function HomePage() {
 						) : (
 							recentTracks.map((track, index) => (
 								<button
-									key={track.id || track.uri}
+									key={`${track.id || track.uri}-${index}`}
 									className="group cursor-pointer bg-transparent border-none p-0 text-left w-full music-card p-4 hover-lift animate-scale-in"
 									style={{ animationDelay: `${index * 0.1}s` }}
 									onClick={() => handleTrackClick(track)}
