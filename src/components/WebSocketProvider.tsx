@@ -1,14 +1,14 @@
 "use client";
 
+import type React from "react";
 import {
 	createContext,
+	useCallback,
 	useContext,
 	useEffect,
+	useRef,
 	useState,
-	useCallback,
 } from "react";
-import type React from "react";
-import { useRef } from "react";
 
 interface UserContext {
 	guildId?: string;
@@ -16,6 +16,13 @@ interface UserContext {
 	userId?: string;
 	avatar?: string;
 	globalName?: string;
+}
+
+interface UserGuild {
+	id: string;
+	name: string;
+	icon: string | null;
+	inVoiceChannel?: boolean;
 }
 
 interface Track {
@@ -34,6 +41,12 @@ interface PlayerState {
 	track?: Track;
 	queue: Track[];
 	volume: number;
+	listeners?: Array<{
+		id: string;
+		name: string;
+		avatar: string | null;
+		role: string;
+	}>;
 }
 
 interface WebSocketCommand {
@@ -49,12 +62,20 @@ interface WebSocketContextType {
 	logs: string[];
 	autoUpdateEnabled: boolean;
 	lastUpdateTime: Date | null;
-	connect: (userId?: string, guildId?: string) => void;
+	availableGuilds: UserGuild[];
+	connect: (
+		userId?: string,
+		guildId?: string,
+		avatar?: string,
+		globalName?: string,
+		token?: string,
+	) => void;
 	disconnect: () => void;
 	sendCommand: (command: WebSocketCommand) => void;
 	clearLogs: () => void;
 	toggleAutoUpdate: () => void;
 	requestStatusAndQueue: () => void;
+	selectGuild: (guildId: string) => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -73,6 +94,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 	const [ws, setWs] = useState<WebSocket | null>(null);
 	const [connected, setConnected] = useState(false);
 	const [userContext, setUserContext] = useState<UserContext>({});
+	const [availableGuilds, setAvailableGuilds] = useState<UserGuild[]>([]);
 	const [playerState, setPlayerState] = useState<PlayerState>({
 		playing: false,
 		queue: [],
@@ -145,6 +167,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 			guildId?: string,
 			avatar?: string,
 			globalName?: string,
+			token?: string,
+			guildsPayload?: unknown[],
 		) => {
 			if (
 				lastConnectedUserId.current === userId &&
@@ -167,14 +191,26 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 			}
 			try {
 				addLog(`Attempting to connect with userId: ${userId}`);
-				const newWs = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/ws`);
+				const wsUrl = token
+					? `${process.env.NEXT_PUBLIC_WS_URL}/ws?token=${token}`
+					: `${process.env.NEXT_PUBLIC_WS_URL}/ws`;
+				const newWs = new WebSocket(wsUrl);
 				newWs.onopen = () => {
 					setConnected(true);
 					addLog("Connected to WebSocket");
 
 					if (userId) {
-						newWs.send(JSON.stringify({ type: "user-connect", userId }));
-						addLog(`Sent user-connect for userId: ${userId}`);
+						storedGuildsRef.current = guildsPayload || [];
+						newWs.send(
+							JSON.stringify({
+								type: "user-connect",
+								userId,
+								guilds: guildsPayload || [],
+							}),
+						);
+						addLog(
+							`Sent user-connect for userId: ${userId} with ${guildsPayload?.length || 0} guilds`,
+						);
 						setUserContext((prev) => ({
 							...prev,
 							...(userId ? { userId } : {}),
@@ -199,19 +235,39 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 								if (data.success) {
 									setUserContext((prev) => ({
 										...prev,
-										guildId: data.guildId,
-										voiceChannelId: data.voiceChannelId,
+										guildId: data.activeGuildId || data.guildId || prev.guildId,
+										voiceChannelId: data.voiceChannelId || prev.voiceChannelId,
 										userId: data.userId || prev.userId,
 										avatar: data.avatar || prev.avatar,
 										globalName: data.globalName || prev.globalName,
 									}));
+									if (Array.isArray(data.guilds)) {
+										setAvailableGuilds((prev) => {
+											const mergedMap = new Map<string, UserGuild>();
+											for (const g of prev) mergedMap.set(g.id, g);
+											for (const g of data.guilds) mergedMap.set(g.id, g);
+											return Array.from(mergedMap.values());
+										});
+									}
 									addLog(
-										`User context updated: Guild ${data.guildId}, Channel ${data.voiceChannelId}`,
+										`User context updated: Guild ${data.activeGuildId}, Channel ${data.voiceChannelId}`,
 									);
 								} else {
 									addLog(
 										"User not found in any voice channel with active player (but you can still send commands)",
 									);
+								}
+								break;
+							case "select-guild":
+								if (data.success) {
+									setUserContext((prev) => ({
+										...prev,
+										guildId: data.guildId,
+										voiceChannelId: data.voiceChannelId || undefined,
+									}));
+									addLog(`Switched control to Guild ${data.guildId}`);
+								} else {
+									addLog(`Failed to switch guild: ${data.message}`);
 								}
 								break;
 							case "queue":
@@ -227,6 +283,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 									volume: data.volume ?? prev.volume,
 									track: data.current ?? prev.track,
 									queue: data.queue ?? prev.queue,
+									listeners: data.listeners ?? prev.listeners,
 								}));
 								addLog(
 									`Player status updated: playing=${data.playing}, volume=${data.volume}`,
@@ -254,6 +311,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 											track: data.player.track ?? prev.track,
 											volume: data.player.volume ?? prev.volume,
 											queue: data.player.queue ?? prev.queue,
+											listeners: data.player.listeners ?? prev.listeners,
 										}));
 									}
 								}
@@ -309,7 +367,28 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 						avatar: data.user.avatar,
 						globalName: data.user.global_name,
 					}));
-					connect(data.user.id);
+
+					let guildsData = [];
+					try {
+						const guildsRes = await fetch("/api/auth/guilds");
+						if (guildsRes.ok) {
+							const gData = await guildsRes.json();
+							if (gData.success && Array.isArray(gData.guilds)) {
+								guildsData = gData.guilds;
+							}
+						}
+					} catch (e) {
+						console.error("Failed to fetch guilds", e);
+					}
+
+					connect(
+						data.user.id,
+						undefined,
+						undefined,
+						undefined,
+						data.token,
+						guildsData,
+					);
 					return;
 				}
 			}
@@ -364,6 +443,16 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		setAutoUpdateEnabled((prev) => !prev);
 	}, []);
 
+	const selectGuild = useCallback(
+		(guildId: string) => {
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({ type: "select-guild", guildId }));
+				addLog(`Switching to guild: ${guildId}`);
+			}
+		},
+		[ws, addLog],
+	);
+
 	const value = {
 		ws,
 		connected,
@@ -372,6 +461,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		logs,
 		autoUpdateEnabled,
 		lastUpdateTime,
+		availableGuilds,
 		connect,
 		disconnect,
 		sendCommand,
@@ -379,6 +469,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		toggleAutoUpdate,
 		requestStatusAndQueue,
 		refreshUser,
+		selectGuild,
 	};
 
 	useEffect(() => {
@@ -396,7 +487,28 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 								avatar: data.user.avatar,
 								globalName: data.user.global_name,
 							}));
-							connect(data.user.id);
+
+							let guildsData = [];
+							try {
+								const guildsRes = await fetch("/api/auth/guilds");
+								if (guildsRes.ok) {
+									const gData = await guildsRes.json();
+									if (gData.success && Array.isArray(gData.guilds)) {
+										guildsData = gData.guilds;
+									}
+								}
+							} catch (e) {
+								console.error("Failed to fetch guilds", e);
+							}
+
+							connect(
+								data.user.id,
+								undefined,
+								undefined,
+								undefined,
+								data.token,
+								guildsData,
+							);
 							return;
 						}
 					}
@@ -418,42 +530,29 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 		};
 	}, [connect, disconnectWebSocketOnly]);
 
+	const storedGuildsRef = useRef<unknown[]>([]);
+
 	useEffect(() => {
-		const interval = setInterval(async () => {
+		if (!ws || ws.readyState !== WebSocket.OPEN || !userContext.userId) {
+			return;
+		}
+
+		const interval = setInterval(() => {
 			try {
-				const res = await fetch("/api/auth/me", { credentials: "include" });
-				if (res.ok) {
-					const data = await res.json();
-					const newUserId = data?.user?.id;
-					const newGuildId = data?.user?.primary_guild?.identity_guild_id;
-					const newVoiceChannelId = data?.user?.voice_channel_id;
+				ws.send(
+					JSON.stringify({
+						type: "user-connect",
+						userId: userContext.userId,
+						guilds: storedGuildsRef.current || [],
+					}),
+				);
+			} catch (err) {
+				console.error("Error sending user status check:", err);
+			}
+		}, 3000);
 
-					const guildChanged =
-						newGuildId !== undefined && newGuildId !== userContext.guildId;
-					const vcChanged =
-						newVoiceChannelId !== undefined &&
-						newVoiceChannelId !== userContext.voiceChannelId;
-
-					if (newUserId && (guildChanged || vcChanged)) {
-						setUserContext((prev) => ({
-							...prev,
-							guildId: newGuildId,
-							voiceChannelId: newVoiceChannelId,
-						}));
-						if (ws && ws.readyState === WebSocket.OPEN) {
-							ws.send(
-								JSON.stringify({ type: "user-connect", userId: newUserId }),
-							);
-							addLog(
-								`Sent user-connect for userId: ${newUserId} (VC/guild changed)`,
-							);
-						}
-					}
-				}
-			} catch {}
-		}, 6000);
 		return () => clearInterval(interval);
-	}, [ws, userContext.guildId, userContext.voiceChannelId, addLog]);
+	}, [ws, userContext.userId]);
 
 	return (
 		<WebSocketContext.Provider value={value}>

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Music } from "lucide-react";
 import Image from "next/image";
-import { useWebSocket } from "./WebSocketProvider";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Music } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "./WebSocketProvider";
 
 interface MusicArtworkProps {
 	className?: string;
@@ -16,14 +16,29 @@ interface MusicArtworkProps {
 
 export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 	className = "",
-	showControls = true,
 	size = "md",
 }) => {
 	const { playerState } = useWebSocket();
+	const track = playerState.track;
+	const trackId = track ? `${track.title}-${track.author}` : null;
+	const newArtwork = track?.artwork || null;
+
+	const [prevTrackId, setPrevTrackId] = useState<string | null>(null);
 	const [currentArtwork, setCurrentArtwork] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState(false);
-	const lastTrackRef = useRef<string | null>(null);
+
+	if (trackId !== prevTrackId) {
+		setPrevTrackId(trackId);
+		setCurrentArtwork(newArtwork);
+		if (newArtwork) {
+			setIsLoading(true);
+			setError(false);
+		} else {
+			setIsLoading(false);
+			setError(false);
+		}
+	}
 
 	const sizeClasses = {
 		sm: "w-16 h-16",
@@ -31,32 +46,6 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 		lg: "w-32 h-32",
 		xl: "w-full aspect-square",
 	};
-
-	useEffect(() => {
-		const track = playerState.track;
-		const trackId = track ? `${track.title}-${track.author}` : null;
-		const newArtwork = track?.artwork;
-
-		if (trackId && trackId !== lastTrackRef.current) {
-			lastTrackRef.current = trackId;
-
-			if (newArtwork && newArtwork !== currentArtwork) {
-				console.log(
-					`🎵 Loading new artwork for: ${track.title} by ${track.author}`,
-				);
-				setIsLoading(true);
-				setError(false);
-				setCurrentArtwork(newArtwork);
-			} else if (!newArtwork) {
-				console.log("🎵 No artwork available for current track");
-				setCurrentArtwork(null);
-			}
-		} else if (!track && lastTrackRef.current) {
-			console.log("🎵 No track playing, clearing artwork");
-			lastTrackRef.current = null;
-			setCurrentArtwork(null);
-		}
-	}, [playerState.track, currentArtwork]);
 
 	const handleImageLoad = () => {
 		setIsLoading(false);
@@ -71,14 +60,14 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 		return (
 			<Card
 				className={cn(
-					"flex items-center justify-center music-card group relative overflow-hidden",
+					"flex items-center justify-center bg-zinc-900 border border-zinc-800 relative overflow-hidden",
 					size === "xl" ? "w-full aspect-square" : sizeClasses[size],
 					className,
 				)}
 			>
 				<div
 					className={cn(
-						"text-center",
+						"text-center z-10",
 						size === "sm" ? "p-2" : size === "md" ? "p-3" : "p-4",
 					)}
 				>
@@ -105,7 +94,7 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 					</div>
 					{size !== "sm" && (
 						<>
-							<p className="text-muted-foreground text-sm font-medium">
+							<p className="text-foreground text-sm font-semibold">
 								No music playing
 							</p>
 							<p className="text-muted-foreground text-xs mt-1">
@@ -114,8 +103,6 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 						</>
 					)}
 				</div>
-				{/* Animated background effect */}
-				<div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-green-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 			</Card>
 		);
 	}
@@ -123,7 +110,7 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 	return (
 		<Card
 			className={cn(
-				"overflow-hidden music-card group relative shadow-modern hover-lift p-0",
+				"overflow-hidden bg-zinc-900 border border-zinc-800 group relative p-0 rounded-lg",
 				sizeClasses[size],
 				className,
 			)}
@@ -135,10 +122,10 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 				)}
 			>
 				{isLoading && (
-					<div className="absolute inset-0 flex items-center justify-center bg-muted">
+					<div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
 						<Skeleton className="w-full h-full" />
 						<div className="absolute inset-0 flex items-center justify-center">
-							<div className="w-8 h-8 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
+							<div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
 								<Music className="w-4 h-4 text-primary" />
 							</div>
 						</div>
@@ -146,7 +133,7 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 				)}
 
 				{error ? (
-					<div className="absolute inset-0 bg-gradient-to-br from-muted/80 to-muted flex items-center justify-center">
+					<div className="absolute inset-0 bg-zinc-900 flex items-center justify-center">
 						<div className="text-center">
 							<div
 								className={cn(
@@ -172,72 +159,21 @@ export const MusicArtwork: React.FC<MusicArtworkProps> = ({
 						</div>
 					</div>
 				) : (
-					<>
-						<Image
-							src={currentArtwork}
-							alt={`Album artwork for ${playerState.track?.title || "Unknown"}`}
-							fill
-							sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-							className={cn(
-								"object-cover transition-all duration-500",
-								isLoading ? "opacity-0 scale-110" : "opacity-100 scale-100",
-								"group-hover:scale-105",
-							)}
-							onLoad={handleImageLoad}
-							onError={handleImageError}
-							priority
-							unoptimized
-						/>
-
-						{/* Overlay gradient for better text visibility */}
-						<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-					</>
-				)}
-
-				{/* Sound waves animation for playing state - Spotify-style */}
-				{playerState.playing && showControls && size !== "sm" && (
-					<div
+					<Image
+						src={currentArtwork}
+						alt={`Album artwork for ${playerState.track?.title || "Unknown"}`}
+						fill
+						sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
 						className={cn(
-							"absolute",
-							size === "md" ? "bottom-2 right-2" : "bottom-3 right-3",
+							"object-cover transition-opacity duration-300",
+							isLoading ? "opacity-0" : "opacity-100",
 						)}
-					>
-						<div
-							className={cn(
-								"flex items-end gap-0.5",
-								size === "md" ? "h-3" : "h-4",
-							)}
-						>
-							<div
-								className={cn(
-									"bg-green-400 rounded-full playing-bar",
-									size === "md" ? "w-0.5" : "w-0.5",
-								)}
-								style={{ height: "40%", animationDelay: "0ms" }}
-							/>
-							<div
-								className={cn(
-									"bg-green-400 rounded-full playing-bar",
-									size === "md" ? "w-0.5" : "w-0.5",
-								)}
-								style={{ height: "100%", animationDelay: "150ms" }}
-							/>
-							<div
-								className={cn(
-									"bg-green-400 rounded-full playing-bar",
-									size === "md" ? "w-0.5" : "w-0.5",
-								)}
-								style={{ height: "60%", animationDelay: "300ms" }}
-							/>
-							<div
-								className={cn(
-									"bg-green-400 rounded-full playing-bar",
-									size === "md" ? "w-0.5" : "w-0.5",
-								)}
-								style={{ height: "80%", animationDelay: "450ms" }}
-							/>
-						</div>
-					</div>
+						onLoad={handleImageLoad}
+						onError={handleImageError}
+						priority
+						loading="eager"
+						unoptimized
+					/>
 				)}
 			</div>
 		</Card>

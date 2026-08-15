@@ -1,8 +1,8 @@
 "use client";
 
-import { useWebSocket } from "@/components/WebSocketProvider";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useWebSocket } from "@/components/WebSocketProvider";
 
 export default function LogsPage() {
 	const { logs, clearLogs } = useWebSocket();
@@ -10,6 +10,13 @@ export default function LogsPage() {
 	useEffect(() => {
 		logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	});
+
+	const keyedLogs = useMemo(() => {
+		return logs.map((log, index) => ({
+			id: `log-item-${index}-${log.substring(0, 15)}`,
+			text: log,
+		}));
+	}, [logs]);
 
 	return (
 		<div className="space-y-6">
@@ -33,12 +40,9 @@ export default function LogsPage() {
 							<p className="text-gray-500">No logs yet...</p>
 						) : (
 							<div className="space-y-1">
-								{logs.map((log) => (
-									<div
-										key={`${log}-${Date.now()}-${Math.random()}`}
-										className="text-green-400 break-words"
-									>
-										{log}
+								{keyedLogs.map((item) => (
+									<div key={item.id} className="text-green-400 break-words">
+										{item.text}
 									</div>
 								))}
 								<div ref={logsEndRef} />

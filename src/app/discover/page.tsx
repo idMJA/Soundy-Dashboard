@@ -1,133 +1,220 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Compass, Music, Play, RefreshCw } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface SpotifyArtist {
-	id: string;
-	name: string;
-	uri: string;
-	href: string;
-	external_urls: Record<string, string>;
-	type: string;
-}
-
-interface SpotifyAlbum {
-	id: string;
-	name: string;
-	type: string;
-	album_type: string;
-	release_date: string;
-	release_date_precision: string;
-	total_tracks: number;
-	uri: string;
-	href: string;
-	external_urls: Record<string, string>;
-	images: Array<{ url: string; height: number; width: number }>;
-	artists: SpotifyArtist[];
-}
+import { useWebSocket } from "@/components/WebSocketProvider";
+import type { DiscoveryTrack } from "@/lib/music-discovery";
 
 export default function DiscoverPage() {
-	// New Releases (dynamic)
-	const [newReleases, setNewReleases] = useState<SpotifyAlbum[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [tracks, setTracks] = useState<DiscoveryTrack[]>([]);
+	const [seeds, setSeeds] = useState<string[]>([]);
+	const [seedArtist, setSeedArtist] = useState<string | null>(null);
+	const [loading, setLoading] = useState(true);
+
+	const { playerState, userContext, sendCommand } = useWebSocket();
+
+	const author = playerState?.track?.author;
+	const title = playerState?.track?.title;
+
+	const fetchFeed = async () => {
+		setLoading(true);
+		try {
+			const queryParams = new URLSearchParams();
+			if (author) queryParams.set("artist", author);
+			if (title) queryParams.set("track", title);
+
+			const res = await fetch(`/api/discover?${queryParams.toString()}`);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.tracks && Array.isArray(data.tracks)) {
+					setTracks(data.tracks);
+					if (data.meta) {
+						setSeeds(data.meta.seeds || []);
+						setSeedArtist(data.meta.seedArtist || null);
+					}
+				}
+			}
+		} catch (err) {
+			console.error("Error loading discover feed:", err);
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	useEffect(() => {
-		async function fetchReleases() {
-			setLoading(true);
-			setError(null);
+		let isMounted = true;
+
+		async function loadInitial() {
 			try {
-				const res = await fetch("/api/spotify/new-releases");
-				if (!res.ok) throw new Error("Failed to fetch new releases");
-				const data = await res.json();
-				setNewReleases(Array.isArray(data.albums) ? data.albums : []);
-			} catch {
-				setError("Failed to load new releases");
-				setNewReleases([]);
+				const queryParams = new URLSearchParams();
+				if (author) queryParams.set("artist", author);
+				if (title) queryParams.set("track", title);
+
+				const res = await fetch(`/api/discover?${queryParams.toString()}`);
+				if (res.ok && isMounted) {
+					const data = await res.json();
+					if (data.tracks && Array.isArray(data.tracks) && isMounted) {
+						setTracks(data.tracks);
+						if (data.meta) {
+							setSeeds(data.meta.seeds || []);
+							setSeedArtist(data.meta.seedArtist || null);
+						}
+					}
+				}
+			} catch (err) {
+				console.error("Error loading discover feed:", err);
 			} finally {
-				setLoading(false);
+				if (isMounted) setLoading(false);
 			}
 		}
-		fetchReleases();
-	}, []);
+
+		loadInitial();
+
+		return () => {
+			isMounted = false;
+		};
+	}, [author, title]);
+
+	const handlePlayTrack = (track: DiscoveryTrack) => {
+		if (!userContext.guildId) return;
+		const query = track.isrc
+			? `dzisrc:${track.isrc}`
+			: `${track.title} ${track.artist}`;
+		sendCommand({
+			type: "play",
+			guildId: userContext.guildId,
+			query,
+		});
+	};
 
 	return (
-		<div className="space-y-6">
-			{/* New Releases Only */}
-			<Card>
-				<CardHeader>
-					<CardTitle>New Releases</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-						{loading ? (
-							Array.from({ length: 6 }).map(() => (
-								<div
-									key={`release-skel-${crypto.randomUUID()}`}
-									className="bg-muted rounded-lg aspect-square animate-pulse"
-								/>
-							))
-						) : error ? (
-							<div className="col-span-full text-center text-destructive text-sm py-8">
-								{error}
-							</div>
-						) : newReleases.length === 0 ? (
-							<div className="col-span-full text-center text-muted-foreground text-sm py-8">
-								No new releases found.
-							</div>
-						) : (
-							newReleases.map((release, index) => (
-								<Link
-									key={`release-${release.id}-${index}`}
-									href={`/view/${encodeURIComponent(`https://open.spotify.com/album/${release.id}`)}`}
-									className="group music-card p-4 hover-lift animate-scale-in block cursor-pointer"
-									style={{ animationDelay: `${index * 0.07}s` }}
+		<div className="container mx-auto p-6 space-y-8 max-w-7xl animate-fade-in">
+			{/* Header Banner */}
+			<div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950/40 via-card to-background p-8 border border-border shadow-2xl backdrop-blur-xl">
+				<div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+				<div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+					<div className="space-y-2">
+						<div className="flex flex-wrap items-center gap-2">
+							<Badge
+								variant="outline"
+								className="bg-primary/10 text-primary border-primary/30 px-3 py-1"
+							>
+								<Compass className="w-3.5 h-3.5 mr-1 text-primary" />
+								Unified Discovery Stream
+							</Badge>
+							{seedArtist && (
+								<Badge
+									variant="secondary"
+									className="bg-primary/10 text-primary border-primary/20 text-xs"
 								>
-									<div className="relative aspect-square rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-all">
-										{release.images?.[0]?.url ? (
-											<Image
-												src={release.images[0].url}
-												alt={release.name}
-												width={400}
-												height={400}
-												className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300 rounded-xl"
-												priority={false}
-												unoptimized={false}
-											/>
-										) : (
-											<div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-												<div className="text-4xl opacity-50">🆕</div>
-											</div>
-										)}
-										{/* Hover overlay */}
-										<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
-											<div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
-												<Play
-													className="w-6 h-6 text-white"
-													fill="currentColor"
-												/>
+									Based on: {seedArtist}
+								</Badge>
+							)}
+							{seeds.map((s) => (
+								<Badge
+									key={`seed-${s}`}
+									variant="outline"
+									className="bg-muted text-muted-foreground border-border text-xs capitalize"
+								>
+									{s}
+								</Badge>
+							))}
+						</div>
+						<h1 className="text-4xl font-extrabold tracking-tight text-foreground font-heading">
+							Discover Music
+						</h1>
+						<p className="text-muted-foreground text-sm max-w-2xl">
+							Explore and pick tracks you love from a single unified stream
+							aggregated across Deezer, Last.fm, Apple Music, and MusicBrainz.
+						</p>
+					</div>
+
+					<Button
+						onClick={fetchFeed}
+						disabled={loading}
+						className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 gap-2 cursor-pointer shadow-md shadow-primary/20 shrink-0"
+					>
+						<RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+						Shuffle Feed
+					</Button>
+				</div>
+			</div>
+
+			{/* Single Unified Exploration Grid */}
+			<Card className="bg-card border-border rounded-3xl p-6 shadow-sm space-y-4">
+				<CardHeader className="p-0 pb-2 flex flex-row items-center justify-between">
+					<CardTitle className="text-xl font-bold text-foreground flex items-center gap-2 font-heading">
+						<Music className="w-5 h-5 text-primary" /> Recommended Songs (
+						{tracks.length})
+					</CardTitle>
+					<Badge
+						variant="secondary"
+						className="bg-primary/10 text-primary border-primary/20 text-xs"
+					>
+						1-Click Play
+					</Badge>
+				</CardHeader>
+				<CardContent className="p-0">
+					<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+						{loading ? (
+							Array.from({ length: 12 }, (_, i) => `skel-disc-${i}`).map(
+								(skelId) => (
+									<div
+										key={skelId}
+										className="aspect-square bg-muted/40 rounded-2xl animate-pulse"
+									/>
+								),
+							)
+						) : tracks.length > 0 ? (
+							tracks.map((track, idx) => (
+								<button
+									type="button"
+									key={track.id || `track-${track.title}-${idx}`}
+									onClick={() => handlePlayTrack(track)}
+									className="text-left w-full group bg-muted/30 border border-border/60 p-3 rounded-2xl hover:border-primary/40 hover:bg-accent/40 transition-all cursor-pointer space-y-2 flex flex-col justify-between"
+								>
+									<div className="relative aspect-square rounded-xl overflow-hidden bg-zinc-950 border border-border">
+										<Image
+											src={
+												track.artworkUrl ||
+												"https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80"
+											}
+											alt={track.title}
+											width={200}
+											height={200}
+											className="object-cover w-full h-full group-hover:scale-105 transition-transform"
+											unoptimized
+										/>
+										<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+											<div className="w-10 h-10 rounded-full bg-primary text-zinc-950 flex items-center justify-center shadow-lg">
+												<Play className="w-5 h-5 ml-0.5" fill="currentColor" />
 											</div>
 										</div>
 									</div>
 									<div className="space-y-1">
-										<h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-											{release.name}
+										<h3
+											className="font-bold text-xs text-foreground truncate group-hover:text-primary transition-colors"
+											title={track.title}
+										>
+											{track.title}
 										</h3>
-										<p className="text-xs text-muted-foreground truncate">
-											{release.artists
-												?.map((a: { name: string }) => a.name)
-												.join(", ")}
+										<p className="text-[10px] text-muted-foreground truncate">
+											{track.artist}
 										</p>
-										<p className="text-xs text-muted-foreground">
-											{release.album_type}
-										</p>
+										<span className="inline-block text-[9px] uppercase font-bold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+											{track.source}
+										</span>
 									</div>
-								</Link>
+								</button>
 							))
+						) : (
+							<div className="col-span-full py-12 text-center text-muted-foreground text-xs">
+								No discovery tracks found. Click Shuffle Feed to try again!
+							</div>
 						)}
 					</div>
 				</CardContent>

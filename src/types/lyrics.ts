@@ -1,11 +1,23 @@
-import type { LyricLine, LyricWord } from "@applemusic-like-lyrics/core";
-
 export interface SyncedLyricsLine {
 	time: number; // Time in milliseconds
 	text: string;
 }
 
-export type { LyricLine, LyricWord };
+export interface LyricWord {
+	startTime: number;
+	endTime: number;
+	word: string;
+}
+
+export interface LyricLine {
+	words: LyricWord[];
+	translatedLyric?: string;
+	romanLyric?: string;
+	startTime: number;
+	endTime: number;
+	isBG?: boolean;
+	isDuet?: boolean;
+}
 
 export interface LyricsData {
 	id: number;

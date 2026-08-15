@@ -1,5 +1,10 @@
-import axios from "axios";
-import type { SyncedLyricsLine, LyricLine, LyricWord } from "@/types/lyrics";
+import type { LyricsResponse, SyncedLyric } from "@mjba/lyrics";
+import type { LyricLine, LyricWord, SyncedLyricsLine } from "@/types/lyrics";
+
+export type RichSyncedLyricLine = NonNullable<
+	LyricsResponse["richSyncedLyrics"]
+>[number];
+export type WordSyncedLyric = RichSyncedLyricLine["words"][number];
 
 export interface LrcLibLyricsResponse {
 	id: number;
@@ -61,10 +66,15 @@ export function convertToAppleMusicFormat(
 		const nextLine = syncedLines[index + 1];
 		const endTime = nextLine ? nextLine.time : line.time + 3000; // Default 3 seconds if no next line
 
+		let text = line.text?.trim() || "";
+		if (text === "♪" || text === "🎵" || !text) {
+			text = "•••";
+		}
+
 		const word: LyricWord = {
 			startTime: line.time,
 			endTime: endTime,
-			word: line.text || "♪",
+			word: text,
 		};
 
 		const lyricLine: LyricLine = {
@@ -81,6 +91,93 @@ export function convertToAppleMusicFormat(
 	});
 }
 
+export interface LyricsApiResponse {
+	success: boolean;
+	source: "musixmatch" | "lrclib";
+	hasTimestamps?: boolean;
+	syncedLyrics?: SyncedLyric[];
+	richSyncedLyrics?: RichSyncedLyricLine[];
+	plainLyrics?: string | null;
+	lrclibData?: LrcLibLyricsResponse;
+}
+
+export function convertMusixmatchRichSyncToAppleMusic(
+	richSyncedLyrics: RichSyncedLyricLine[],
+): LyricLine[] {
+	if (!richSyncedLyrics || richSyncedLyrics.length === 0) return [];
+
+	return richSyncedLyrics.map((line) => {
+		const startTime = Math.round(line.startTime.total * 1000);
+		const endTime = Math.round(line.endTime.total * 1000);
+
+		const words: LyricWord[] = line.words.map(
+			(w: WordSyncedLyric, idx: number) => {
+				const nextWord = line.words[idx + 1];
+				const wStartTime = Math.round(w.time.total * 1000);
+				const wEndTime = nextWord
+					? Math.round(nextWord.time.total * 1000)
+					: endTime;
+
+				let text = w.text || "";
+				if (text === "♪" || text === "🎵" || !text) {
+					text = "•••";
+				}
+
+				return {
+					startTime: wStartTime,
+					endTime: wEndTime,
+					word: text,
+				};
+			},
+		);
+
+		return {
+			words,
+			translatedLyric: "",
+			romanLyric: "",
+			startTime,
+			endTime,
+			isBG: false,
+			isDuet: false,
+		};
+	});
+}
+
+export function convertMusixmatchSyncedToAppleMusic(
+	syncedLyrics: SyncedLyric[],
+): LyricLine[] {
+	if (!syncedLyrics || syncedLyrics.length === 0) return [];
+
+	return syncedLyrics.map((lyric, index) => {
+		const nextLyric = syncedLyrics[index + 1];
+		const startTime = Math.round(lyric.time.total * 1000);
+		const endTime = nextLyric
+			? Math.round(nextLyric.time.total * 1000)
+			: startTime + 3000;
+
+		let text = lyric.text?.trim() || "";
+		if (text === "♪" || text === "🎵" || !text) {
+			text = "•••";
+		}
+
+		return {
+			words: [
+				{
+					startTime,
+					endTime,
+					word: text,
+				},
+			],
+			translatedLyric: "",
+			romanLyric: "",
+			startTime,
+			endTime,
+			isBG: false,
+			isDuet: false,
+		};
+	});
+}
+
 export async function fetchLyricsFromLrcLib({
 	trackName,
 	artistName,
@@ -91,23 +188,23 @@ export async function fetchLyricsFromLrcLib({
 	artistName: string;
 	albumName: string;
 	duration: number;
-}): Promise<LrcLibLyricsResponse | null> {
+}): Promise<LyricsApiResponse | null> {
 	try {
-		// Use our internal API route instead of directly calling LRCLIB
-		const response = await axios.get<LrcLibLyricsResponse>("/api/lyrics", {
-			params: {
-				track_name: trackName,
-				artist_name: artistName,
-				album_name: albumName,
-				duration,
-			},
-		});
-		return response.data;
-	} catch (error: unknown) {
-		if (axios.isAxiosError(error) && error.response?.status === 404) {
-			return null;
+		const origin = typeof window !== "undefined" ? window.location.origin : "";
+		const url = new URL("/api/lyrics", origin);
+		url.searchParams.set("track_name", trackName);
+		url.searchParams.set("artist_name", artistName);
+		url.searchParams.set("album_name", albumName);
+		url.searchParams.set("duration", String(duration));
+
+		const response = await fetch(url.toString());
+		if (!response.ok) {
+			if (response.status === 404) return null;
+			throw new Error(`Failed to fetch lyrics: ${response.status}`);
 		}
+		return (await response.json()) as LyricsApiResponse;
+	} catch (error: unknown) {
 		console.error("Error fetching lyrics:", error);
-		return null; // Return null on any error to prevent app crashes
+		return null;
 	}
 }

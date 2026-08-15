@@ -1,46 +1,64 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useWebSocket } from "./WebSocketProvider";
+
 interface MobileHeaderProps {
 	onMenuToggle: () => void;
 }
 
 const MenuIcon = ({ className }: { className?: string }) => (
-	<svg className={className} fill="currentColor" viewBox="0 0 24 24">
+	<svg className={className} fill="none" viewBox="0 0 24 24">
 		<title>Menu</title>
 		<path
-			d="M3 12h18M3 6h18M3 18h18"
+			d="M4 8h16M4 16h16"
 			stroke="currentColor"
 			strokeWidth="2"
 			strokeLinecap="round"
-			strokeLinejoin="round"
 		/>
 	</svg>
 );
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuToggle }) => {
+	const { connected, userContext } = useWebSocket();
+
 	return (
-		<div className="lg:hidden glass border-b border-border/50 p-4 fixed top-0 left-0 right-0 z-50 backdrop-blur-xl shadow-modern animate-slide-up">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center space-x-4">
-					<button
-						type="button"
-						onClick={onMenuToggle}
-						className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-all hover:scale-110"
-					>
-						<MenuIcon className="w-6 h-6" />
-					</button>
-					<div className="flex items-center space-x-3">
-						<div>
-							<h1 className="text-lg font-bold text-foreground">Soundy</h1>
-						</div>
-					</div>
+		<div className="lg:hidden fixed top-0 left-0 right-0 z-50 floating-bar">
+			<div className="flex items-center justify-between px-4 py-3">
+				<button
+					type="button"
+					onClick={onMenuToggle}
+					className="p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-xl transition-colors"
+				>
+					<MenuIcon className="w-5 h-5" />
+				</button>
+
+				<div className="flex items-center gap-2">
+					<div
+						className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-destructive"}`}
+					/>
+					<span className="text-base font-bold text-foreground tracking-tight">
+						Soundy
+					</span>
 				</div>
-				<div className="flex items-center gap-3">
-					<div className="flex items-center gap-2">
-						<div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-						<span className="text-xs text-muted-foreground">Live</span>
-					</div>
-				</div>
+
+				{userContext?.userId ? (
+					<Avatar className="h-7 w-7 border border-border/55">
+						<AvatarImage
+							src={
+								userContext.avatar
+									? `https://cdn.discordapp.com/avatars/${userContext.userId}/${userContext.avatar}.webp`
+									: ""
+							}
+							alt="User"
+						/>
+						<AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
+							{userContext.userId.slice(0, 2).toUpperCase()}
+						</AvatarFallback>
+					</Avatar>
+				) : (
+					<div className="w-7" />
+				)}
 			</div>
 		</div>
 	);

@@ -12,16 +12,32 @@ interface TrackData {
 	author?: string;
 }
 
+import { PLATFORMS } from "./media-routes";
+
 /**
  * Generate a URL-safe track ID for navigation
  * @param track Track data object
  * @returns URL-encoded track identifier
  */
 export function generateTrackId(track: TrackData): string {
+	const rawUrl = track.uri || track.url || track.id || "";
+
+	if (rawUrl) {
+		for (const platform of PLATFORMS) {
+			const isMatch =
+				typeof platform.domainPattern === "string"
+					? rawUrl.includes(platform.domainPattern)
+					: platform.domainPattern.test(rawUrl);
+
+			if (isMatch) {
+				const path = platform.toAestheticPath(rawUrl);
+				if (path) return path;
+			}
+		}
+	}
+
 	return encodeURIComponent(
-		track.uri ||
-			track.url ||
-			track.id ||
+		rawUrl ||
 			`${track.title || track.name || "Unknown"} ${track.artist || track.author || "Unknown"}`,
 	);
 }

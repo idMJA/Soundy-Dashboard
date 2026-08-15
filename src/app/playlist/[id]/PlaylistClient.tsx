@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Calendar, Clock, Music, Play, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Music, Clock, Calendar, Trash2, Plus } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWebSocket } from "@/components/WebSocketProvider";
 
 interface Track {
@@ -229,14 +229,9 @@ export default function PlaylistClient({ playlistId }: PlaylistClientProps) {
 	if (isLoading) {
 		return (
 			<div className="space-y-6">
-				<Card>
-					<CardHeader>
-						<CardTitle>Loading...</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="flex items-center justify-center py-8">
-							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-						</div>
+				<Card className="bg-zinc-900/20 backdrop-blur-md border border-white/5 shadow-xl rounded-3xl p-6">
+					<CardContent className="flex items-center justify-center py-12">
+						<div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
 					</CardContent>
 				</Card>
 			</div>
@@ -246,12 +241,14 @@ export default function PlaylistClient({ playlistId }: PlaylistClientProps) {
 	if (!playlist) {
 		return (
 			<div className="space-y-6">
-				<Card>
+				<Card className="bg-zinc-900/20 backdrop-blur-md border border-white/5 shadow-xl rounded-3xl p-6">
 					<CardHeader>
-						<CardTitle>Playlist Not Found</CardTitle>
+						<CardTitle className="text-lg font-bold text-foreground">
+							Playlist Not Found
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<p className="text-muted-foreground">
+						<p className="text-sm text-muted-foreground">
 							The requested playlist could not be found.
 						</p>
 					</CardContent>
@@ -261,71 +258,87 @@ export default function PlaylistClient({ playlistId }: PlaylistClientProps) {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 animate-fade-in">
 			{/* Playlist Header */}
-			<Card>
-				<CardHeader>
-					<div className="flex items-start space-x-4">
-						<div className="w-48 h-48 bg-gradient-to-br from-primary/20 to-primary/40 rounded-lg flex items-center justify-center">
+			<Card className="bg-zinc-900/20 border border-zinc-800/50 rounded-lg p-6 shadow-none relative overflow-hidden">
+				<CardContent className="p-0">
+					<div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+						<div className="w-32 h-32 bg-zinc-950 rounded-lg flex items-center justify-center border border-zinc-800 flex-shrink-0">
 							<Music className="w-16 h-16 text-primary" />
 						</div>
-						<div className="flex-1 space-y-4">
-							<div>
-								<p className="text-sm text-muted-foreground">Playlist</p>
-								<h1 className="text-4xl font-bold">{playlist.name}</h1>
+						<div className="flex-1 flex flex-col justify-between self-stretch text-center sm:text-left py-2">
+							<div className="space-y-2">
+								<p className="text-xs font-semibold text-primary uppercase tracking-widest">
+									Playlist
+								</p>
+								<h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tight">
+									{playlist.name}
+								</h1>
 							</div>
-							<div className="flex items-center space-x-4 text-sm text-muted-foreground">
-								<div className="flex items-center space-x-1">
-									<Music className="w-4 h-4" />
-									<span>{playlist.tracks.length} tracks</span>
+							<div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-4 mt-6">
+								<div className="flex items-center justify-center sm:justify-start space-x-4 text-xs text-muted-foreground font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 w-fit self-center sm:self-auto">
+									<div className="flex items-center space-x-1">
+										<Music className="w-3.5 h-3.5" />
+										<span>{playlist.tracks.length} tracks</span>
+									</div>
+									<div className="w-1 h-1 bg-zinc-800 rounded-full" />
+									<div className="flex items-center space-x-1">
+										<Calendar className="w-3.5 h-3.5" />
+										<span>
+											{new Date(playlist.createdAt).toLocaleDateString()}
+										</span>
+									</div>
 								</div>
-								<div className="flex items-center space-x-1">
-									<Calendar className="w-4 h-4" />
-									<span>
-										Created {new Date(playlist.createdAt).toLocaleDateString()}
-									</span>
+								<div className="flex items-center justify-center space-x-2">
+									<Button
+										onClick={handlePlayPlaylist}
+										disabled={!connected || playlist.tracks.length === 0}
+										className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-4 h-9 transition-all"
+									>
+										<Play className="w-4 h-4 mr-2" fill="currentColor" />
+										Play Playlist
+									</Button>
+									<Button
+										variant="outline"
+										className="border-zinc-800 text-foreground hover:bg-zinc-900 transition-all rounded-lg px-4 h-9"
+										onClick={() => {
+											const url = prompt(
+												"Enter track URL (Spotify, YouTube, etc.):",
+											);
+											if (url) {
+												handleAddTrackFromUrl(url);
+											}
+										}}
+									>
+										<Plus className="w-4 h-4 mr-1.5" />
+										Add Track
+									</Button>
 								</div>
-							</div>
-							<div className="flex items-center space-x-2">
-								<Button
-									onClick={handlePlayPlaylist}
-									disabled={!connected || playlist.tracks.length === 0}
-									className="rounded-full"
-								>
-									<Play className="w-4 h-4 mr-2" />
-									Play
-								</Button>
-								<Button
-									variant="outline"
-									onClick={() => {
-										const url = prompt(
-											"Enter track URL (Spotify, YouTube, etc.):",
-										);
-										if (url) {
-											handleAddTrackFromUrl(url);
-										}
-									}}
-								>
-									<Plus className="w-4 h-4 mr-2" />
-									Add Track
-								</Button>
 							</div>
 						</div>
 					</div>
-				</CardHeader>
+				</CardContent>
 			</Card>
 
 			{/* Track List */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Tracks</CardTitle>
+			<Card className="bg-zinc-900/20 border border-zinc-800/50 rounded-lg shadow-none">
+				<CardHeader className="border-b border-zinc-800 py-4 px-6">
+					<CardTitle className="text-lg font-bold text-foreground">
+						Tracks
+					</CardTitle>
 				</CardHeader>
-				<CardContent>
+				<CardContent className="p-6">
 					{playlist.tracks.length === 0 ? (
-						<div className="text-center py-8">
-							<Music className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-							<p className="text-muted-foreground">
-								No tracks in this playlist
+						<div className="text-center py-16 bg-zinc-950 rounded-lg border border-zinc-800">
+							<div className="w-16 h-16 bg-zinc-900 rounded-lg flex items-center justify-center mx-auto mb-4 border border-zinc-800">
+								<Music className="w-8 h-8 text-muted-foreground/60" />
+							</div>
+							<p className="font-semibold text-foreground mb-1">
+								No tracks yet
+							</p>
+							<p className="text-xs text-muted-foreground">
+								Click &quot;Add Track&quot; above to load search URLs into this
+								playlist
 							</p>
 						</div>
 					) : (
@@ -347,58 +360,64 @@ export default function PlaylistClient({ playlistId }: PlaylistClientProps) {
 								return (
 									<div
 										key={track.id}
-										className="flex items-center justify-between p-3 bg-muted rounded-md"
+										className="flex items-center justify-between p-2.5 bg-zinc-900/20 border border-zinc-800/50 rounded-lg hover:bg-zinc-900/40 transition-all duration-150"
 									>
-										<div className="flex items-center space-x-4 flex-1">
-											<div className="w-8 text-sm text-muted-foreground">
+										<div className="flex items-center space-x-4 flex-1 min-w-0">
+											<div className="w-6 text-sm font-mono text-muted-foreground text-center">
 												{index + 1}
 											</div>
-											<div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+											<div className="w-10 h-10 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0 border border-zinc-800 overflow-hidden">
 												{artwork ? (
 													<Image
 														src={artwork}
 														alt={title}
 														width={48}
 														height={48}
-														className="w-full h-full object-cover rounded"
+														className="w-full h-full object-cover"
 														unoptimized
 													/>
 												) : (
-													<Music className="w-6 h-6 text-muted-foreground" />
+													<Music className="w-5 h-5 text-primary" />
 												)}
 											</div>
 											<div className="flex-1 min-w-0 text-left">
-												<p className="font-medium truncate">{title}</p>
-												<p className="text-sm text-muted-foreground truncate">
+												<p className="font-bold text-sm text-foreground truncate hover:text-primary transition-colors cursor-pointer">
+													{title}
+												</p>
+												<p className="text-xs text-muted-foreground truncate mt-0.5">
 													{artist}
 												</p>
 											</div>
-											<div className="flex items-center space-x-2">
+											<div className="flex items-center space-x-4">
 												{duration && (
-													<div className="flex items-center space-x-1 text-sm text-muted-foreground">
-														<Clock className="w-3 h-3" />
+													<div className="flex items-center space-x-1.5 text-xs text-muted-foreground font-mono">
+														<Clock className="w-3.5 h-3.5" />
 														<span>{duration}</span>
 													</div>
 												)}
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() => handlePlayTrack(track)}
-													className="text-green-500 hover:text-green-700"
-												>
-													<Play className="w-4 h-4" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={(e) => {
-														e.stopPropagation();
-														handleRemoveTrack(track);
-													}}
-													className="text-red-500 hover:text-red-700"
-												>
-													<Trash2 className="w-4 h-4" />
-												</Button>
+												<div className="flex items-center space-x-1.5">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => handlePlayTrack(track)}
+														className="h-8 w-8 p-0 rounded-lg text-primary hover:bg-zinc-900 transition-all"
+														title="Play track"
+													>
+														<Play className="w-4 h-4" fill="currentColor" />
+													</Button>
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={(e) => {
+															e.stopPropagation();
+															handleRemoveTrack(track);
+														}}
+														className="h-8 w-8 p-0 rounded-lg text-rose-500 hover:bg-zinc-900 transition-all"
+														title="Remove from playlist"
+													>
+														<Trash2 className="w-4 h-4" />
+													</Button>
+												</div>
 											</div>
 										</div>
 									</div>

@@ -1,25 +1,26 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { useWebSocket } from "@/components/WebSocketProvider";
 import {
 	ArrowLeft,
-	Play,
-	Pause,
-	Heart,
-	Share2,
 	Clock,
-	Music,
-	ExternalLink,
 	Download,
+	ExternalLink,
+	Heart,
+	Music,
+	Pause,
+	Play,
 	Plus,
+	Share2,
 } from "lucide-react";
 import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useWebSocket } from "@/components/WebSocketProvider";
+import { PLATFORMS } from "@/lib/media-routes";
 import { cn } from "@/lib/utils";
 
 interface TrackDetails {
@@ -29,7 +30,6 @@ interface TrackDetails {
 	uri?: string;
 	artwork?: string;
 	isStream?: boolean;
-	// Additional properties that might be returned
 	id?: string;
 	name?: string;
 	artist?: string;
@@ -53,19 +53,31 @@ export default function TrackViewPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [isLiked, setIsLiked] = useState(false);
 
-	const trackId = params.id as string;
+	const idParts = useMemo(() => {
+		return Array.isArray(params.id) ? params.id : [params.id as string];
+	}, [params.id]);
 
 	// Fetch track details
 	useEffect(() => {
 		const fetchTrackDetails = async () => {
-			if (!trackId) return;
+			if (!idParts || idParts.length === 0 || !idParts[0]) return;
 
 			setLoading(true);
 			setError(null);
 
 			try {
-				// Try to search for the track using its ID or URL
-				const searchQuery = decodeURIComponent(trackId);
+				let searchQuery = "";
+				const firstPart = idParts[0];
+
+				const platform = PLATFORMS.find((p) => p.prefix === firstPart);
+				if (platform) {
+					searchQuery = platform.toFullUrl(idParts) || "";
+				}
+
+				if (!searchQuery) {
+					searchQuery = decodeURIComponent(idParts.join("/"));
+				}
+
 				const res = await fetch(
 					`/api/music/search?q=${encodeURIComponent(searchQuery)}`,
 				);
@@ -90,7 +102,7 @@ export default function TrackViewPage() {
 		};
 
 		fetchTrackDetails();
-	}, [trackId]);
+	}, [idParts]);
 
 	// Format duration
 	const formatDuration = (milliseconds: number) => {
@@ -241,18 +253,22 @@ export default function TrackViewPage() {
 	const isPlaying = isCurrentTrack && playerState.playing;
 
 	return (
-		<div className="container mx-auto p-6 space-y-6">
+		<div className="container mx-auto p-4 space-y-6 animate-fade-in">
 			{/* Back Button */}
-			<Button variant="ghost" onClick={() => router.back()}>
+			<Button
+				variant="outline"
+				onClick={() => router.back()}
+				className="border-zinc-800 text-muted-foreground hover:text-foreground hover:bg-zinc-900 rounded-lg px-3 h-9 font-semibold transition-all"
+			>
 				<ArrowLeft className="w-4 h-4 mr-2" />
 				Back
 			</Button>
 
 			{/* Main Content */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 				{/* Artwork */}
 				<div className="lg:col-span-1">
-					<div className="aspect-square rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+					<div className="aspect-square rounded-lg overflow-hidden bg-zinc-950 border border-zinc-800 flex items-center justify-center relative group">
 						{track.artwork ? (
 							<Image
 								src={track.artwork}
@@ -261,42 +277,45 @@ export default function TrackViewPage() {
 								height={400}
 								className="object-cover w-full h-full"
 								priority
+								loading="eager"
 							/>
 						) : (
-							<Music className="w-24 h-24 text-muted-foreground" />
+							<Music className="w-24 h-24 text-primary" />
 						)}
 					</div>
 				</div>
 
 				{/* Track Information */}
-				<div className="lg:col-span-2 space-y-6">
-					{/* Title and Artist */}
-					<div>
-						<h1 className="text-4xl font-bold mb-2">
+				<div className="lg:col-span-2 space-y-6 flex flex-col justify-between py-2">
+					<div className="space-y-3">
+						<h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tight">
 							{track.title || track.name || "Unknown Title"}
 						</h1>
-						<p className="text-xl text-muted-foreground mb-4">
+						<p className="text-xl font-medium text-primary">
 							{track.author || track.artist || "Unknown Artist"}
 						</p>
 						{track.album && (
-							<p className="text-lg text-muted-foreground">
+							<Badge
+								variant="secondary"
+								className="bg-zinc-950 border border-zinc-800 text-foreground rounded-lg px-3 py-1 font-normal text-xs"
+							>
 								Album: {track.album}
-							</p>
+							</Badge>
 						)}
 					</div>
 
 					{/* Action Buttons */}
-					<div className="flex items-center space-x-4 flex-wrap">
+					<div className="flex items-center space-x-3 flex-wrap gap-y-3">
 						<Button
 							size="lg"
 							onClick={handlePlayPause}
 							disabled={!connected}
-							className="min-w-[120px]"
+							className="bg-primary hover:bg-primary/90 text-zinc-950 font-bold rounded-lg transition-all px-6 min-w-[130px]"
 						>
 							{isPlaying ? (
-								<Pause className="w-5 h-5 mr-2" />
+								<Pause className="w-4 h-4 mr-2" fill="currentColor" />
 							) : (
-								<Play className="w-5 h-5 mr-2" />
+								<Play className="w-4 h-4 mr-2" fill="currentColor" />
 							)}
 							{isPlaying ? "Pause" : "Play"}
 						</Button>
@@ -305,6 +324,7 @@ export default function TrackViewPage() {
 							variant="outline"
 							onClick={handleAddToPlaylist}
 							disabled={!connected}
+							className="border-zinc-800 text-foreground hover:bg-zinc-900 transition-all rounded-lg px-4"
 						>
 							<Plus className="w-4 h-4 mr-2" />
 							Add to Queue
@@ -314,7 +334,12 @@ export default function TrackViewPage() {
 							variant="outline"
 							onClick={handleToggleLike}
 							disabled={!userContext.userId}
-							className={cn(isLiked && "text-red-500")}
+							className={cn(
+								"border-zinc-800 hover:bg-zinc-900 rounded-lg transition-all px-4",
+								isLiked
+									? "text-rose-500 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:text-rose-400"
+									: "text-foreground",
+							)}
 						>
 							<Heart
 								className={cn("w-4 h-4 mr-2", isLiked && "fill-current")}
@@ -322,13 +347,20 @@ export default function TrackViewPage() {
 							{isLiked ? "Liked" : "Like"}
 						</Button>
 
-						<Button variant="outline">
+						<Button
+							variant="outline"
+							className="border-zinc-800 text-foreground hover:bg-zinc-900 transition-all rounded-lg px-4"
+						>
 							<Share2 className="w-4 h-4 mr-2" />
 							Share
 						</Button>
 
 						{(track.uri || track.url) && (
-							<Button variant="outline" asChild>
+							<Button
+								variant="outline"
+								asChild
+								className="border-zinc-800 text-foreground hover:bg-zinc-900 transition-all rounded-lg px-4"
+							>
 								<a
 									href={track.uri || track.url}
 									target="_blank"
@@ -342,52 +374,71 @@ export default function TrackViewPage() {
 					</div>
 
 					{/* Track Details */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Track Details</CardTitle>
+					<Card className="bg-zinc-900/20 border border-zinc-800/50 rounded-lg p-6 shadow-none">
+						<CardHeader className="p-0 pb-4 border-b border-zinc-800 mb-4">
+							<CardTitle className="text-lg font-bold text-foreground">
+								Track Details
+							</CardTitle>
 						</CardHeader>
-						<CardContent className="space-y-4">
+						<CardContent className="p-0 space-y-4">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								{track.duration && (
-									<div className="flex items-center">
-										<Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-										<span>Duration: {formatDuration(track.duration)}</span>
+									<div className="flex items-center text-sm">
+										<Clock className="w-4 h-4 mr-2.5 text-muted-foreground" />
+										<span className="text-muted-foreground mr-1">
+											Duration:
+										</span>
+										<span className="font-semibold text-foreground">
+											{formatDuration(track.duration)}
+										</span>
 									</div>
 								)}
 
 								{track.source && (
-									<div className="flex items-center">
-										<Download className="w-4 h-4 mr-2 text-muted-foreground" />
-										<span>Source: {track.source}</span>
+									<div className="flex items-center text-sm">
+										<Download className="w-4 h-4 mr-2.5 text-muted-foreground" />
+										<span className="text-muted-foreground mr-1">Source:</span>
+										<span className="font-semibold text-foreground capitalize">
+											{track.source}
+										</span>
 									</div>
 								)}
 
 								{track.isStream !== undefined && (
 									<div className="flex items-center">
-										<Badge variant={track.isStream ? "default" : "secondary"}>
+										<Badge
+											variant={track.isStream ? "default" : "secondary"}
+											className="rounded-lg px-2.5 py-0.5 text-xs"
+										>
 											{track.isStream ? "Live Stream" : "Track"}
 										</Badge>
 									</div>
 								)}
 
 								{track.views && (
-									<div>
-										<span className="text-muted-foreground">Views: </span>
-										<span>{track.views.toLocaleString()}</span>
+									<div className="text-sm flex items-center">
+										<span className="text-muted-foreground mr-1">Views:</span>
+										<span className="font-semibold text-foreground">
+											{track.views.toLocaleString()}
+										</span>
 									</div>
 								)}
 
 								{track.likes && (
-									<div>
-										<span className="text-muted-foreground">Likes: </span>
-										<span>{track.likes.toLocaleString()}</span>
+									<div className="text-sm flex items-center">
+										<span className="text-muted-foreground mr-1">Likes:</span>
+										<span className="font-semibold text-foreground">
+											{track.likes.toLocaleString()}
+										</span>
 									</div>
 								)}
 
 								{track.uploadDate && (
-									<div>
-										<span className="text-muted-foreground">Upload Date: </span>
-										<span>
+									<div className="text-sm flex items-center">
+										<span className="text-muted-foreground mr-1">
+											Upload Date:
+										</span>
+										<span className="font-semibold text-foreground">
 											{new Date(track.uploadDate).toLocaleDateString()}
 										</span>
 									</div>
@@ -396,10 +447,12 @@ export default function TrackViewPage() {
 
 							{track.description && (
 								<>
-									<Separator />
-									<div>
-										<h4 className="font-semibold mb-2">Description</h4>
-										<p className="text-muted-foreground text-sm leading-relaxed">
+									<Separator className="bg-zinc-800" />
+									<div className="space-y-2">
+										<h4 className="font-bold text-sm text-foreground">
+											Description
+										</h4>
+										<p className="text-muted-foreground text-xs leading-relaxed max-h-36 overflow-y-auto custom-scrollbar font-light">
 											{track.description}
 										</p>
 									</div>
@@ -408,12 +461,16 @@ export default function TrackViewPage() {
 
 							{track.tags && track.tags.length > 0 && (
 								<>
-									<Separator />
-									<div>
-										<h4 className="font-semibold mb-2">Tags</h4>
-										<div className="flex flex-wrap gap-2">
+									<Separator className="bg-zinc-800" />
+									<div className="space-y-2">
+										<h4 className="font-bold text-sm text-foreground">Tags</h4>
+										<div className="flex flex-wrap gap-1.5">
 											{track.tags.map((tag) => (
-												<Badge key={tag} variant="outline">
+												<Badge
+													key={tag}
+													variant="outline"
+													className="border-zinc-800 text-muted-foreground rounded-lg px-2.5 py-0.5 text-[10px] uppercase font-mono font-bold tracking-wider"
+												>
 													{tag}
 												</Badge>
 											))}

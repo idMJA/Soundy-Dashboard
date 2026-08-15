@@ -1,9 +1,28 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+	Geist,
+	Geist_Mono,
+	Inter,
+	Public_Sans,
+	Roboto_Slab,
+} from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AppLayout } from "@/components/AppLayout";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const publicSansHeading = Public_Sans({
+	subsets: ["latin"],
+	variable: "--font-heading",
+});
+
+const robotoSlab = Roboto_Slab({
+	subsets: ["latin"],
+	variable: "--font-serif",
+});
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -16,8 +35,43 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Soundy Dashboard - Discord Music Bot Control",
-	description: "Control your Discord music bot with a modern web interface",
+	title: "Soundy Dashboard - Modern Discord Music Bot Control",
+	description:
+		"Stream high quality music, manage custom playlists, view live synced lyrics, and control your Soundy Discord bot in real-time.",
+	keywords: [
+		"Discord music bot",
+		"Soundy",
+		"Music Player",
+		"Lavalink",
+		"Live Lyrics",
+		"Discord Bot Dashboard",
+	],
+	openGraph: {
+		title: "Soundy Dashboard - Modern Discord Music Bot Control",
+		description:
+			"Stream high quality music, manage custom playlists, view live synced lyrics, and control your Soundy Discord bot in real-time.",
+		url: "https://soundy.mja.moe",
+		siteName: "Soundy Dashboard",
+		images: [
+			{
+				url: "https://raw.githubusercontent.com/idMJA/Soundy/master/assets/play.png",
+				width: 1200,
+				height: 630,
+				alt: "Soundy Dashboard Interface",
+			},
+		],
+		locale: "en_US",
+		type: "website",
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Soundy Dashboard - Modern Discord Music Bot Control",
+		description:
+			"Control Soundy Discord Bot with high quality audio, live synced lyrics, and custom playlists.",
+		images: [
+			"https://raw.githubusercontent.com/idMJA/Soundy/master/assets/play.png",
+		],
+	},
 };
 
 export default function RootLayout({
@@ -26,9 +80,19 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html
+			lang="en"
+			suppressHydrationWarning
+			className={cn(
+				inter.variable,
+				"font-serif",
+				robotoSlab.variable,
+				publicSansHeading.variable,
+			)}
+		>
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+				suppressHydrationWarning
 			>
 				<ThemeProvider
 					attribute="class"

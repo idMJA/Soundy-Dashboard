@@ -1,10 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConnectionPanel } from "@/components/ConnectionPanel";
+import { Bug, Link, RefreshCw, Settings } from "lucide-react";
 import { AutoUpdateControls } from "@/components/AutoUpdateControls";
+import { ConnectionPanel } from "@/components/ConnectionPanel";
 import { DebugPanel } from "@/components/DebugPanel";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
 	return (
@@ -20,8 +21,11 @@ export default function SettingsPage() {
 							Manage your music dashboard preferences and connections
 						</p>
 					</div>
-					<Badge variant="secondary" className="px-4 py-2">
-						⚙️ Configuration
+					<Badge
+						variant="secondary"
+						className="px-4 py-2 flex items-center gap-1.5"
+					>
+						<Settings className="w-3.5 h-3.5" /> Configuration
 					</Badge>
 				</div>
 			</div>
@@ -36,7 +40,7 @@ export default function SettingsPage() {
 					<CardHeader className="space-y-3">
 						<div className="flex items-center gap-3">
 							<div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-								<div className="text-white text-lg">🔗</div>
+								<Link className="w-5 h-5 text-white" />
 							</div>
 							<div>
 								<CardTitle className="text-xl">Connection</CardTitle>
@@ -59,7 +63,7 @@ export default function SettingsPage() {
 					<CardHeader className="space-y-3">
 						<div className="flex items-center gap-3">
 							<div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-								<div className="text-white text-lg">🔄</div>
+								<RefreshCw className="w-5 h-5 text-white" />
 							</div>
 							<div>
 								<CardTitle className="text-xl">Auto Update</CardTitle>
@@ -82,7 +86,7 @@ export default function SettingsPage() {
 					<CardHeader className="space-y-3">
 						<div className="flex items-center gap-3">
 							<div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-								<div className="text-white text-lg">🐛</div>
+								<Bug className="w-5 h-5 text-white" />
 							</div>
 							<div>
 								<CardTitle className="text-xl">Debug Information</CardTitle>

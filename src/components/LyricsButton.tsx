@@ -27,11 +27,11 @@ export function LyricsButton({ disabled }: LyricsButtonProps) {
 			onClick={() => router.push("/lyrics")}
 			disabled={disabled}
 			variant="ghost"
-			size="default"
-			className="rounded-full w-10 h-10 p-0 hover:bg-primary/10 hover:text-primary transition-all hover:scale-110"
+			size="sm"
+			className="rounded-full w-9 h-9 p-0 hover:bg-zinc-950/40 hover:text-primary transition-all flex items-center justify-center"
 			title="Show lyrics"
 		>
-			<LyricsIcon className="w-5 h-5" />
+			<LyricsIcon className="w-4.5 h-4.5" />
 		</Button>
 	);
 }

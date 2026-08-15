@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
-import { useWebSocket } from "./WebSocketProvider";
-import { SyncedLyrics } from "./SyncedLyrics";
+import { memo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -10,7 +9,8 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { SyncedLyrics } from "./SyncedLyrics";
+import { useWebSocket } from "./WebSocketProvider";
 
 const LyricsIcon = ({ className }: { className?: string }) => (
 	<svg
@@ -29,17 +29,18 @@ const MemoizedSyncedLyrics = memo(SyncedLyrics);
 export function LyricsDialog() {
 	const { playerState } = useWebSocket();
 	const [isOpen, setIsOpen] = useState(false);
-	const [lastTrackId, setLastTrackId] = useState<string | undefined>(undefined);
 	const track = playerState.track;
+	const trackId = track
+		? `${track.title}__${track.author}__${track.duration}`
+		: undefined;
 
-	useEffect(() => {
-		if (!track) return;
-		const trackId = `${track.title}__${track.author}__${track.duration}`;
-		if (lastTrackId && lastTrackId !== trackId) {
+	const [prevTrackId, setPrevTrackId] = useState<string | undefined>(undefined);
+	if (trackId !== prevTrackId) {
+		setPrevTrackId(trackId);
+		if (prevTrackId) {
 			setIsOpen(false);
 		}
-		setLastTrackId(trackId);
-	}, [track, lastTrackId]);
+	}
 
 	return (
 		<Dialog open={isOpen} onOpenChange={setIsOpen}>

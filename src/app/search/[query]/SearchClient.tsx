@@ -1,31 +1,31 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import {
-	Search,
-	X,
-	Play,
-	Plus,
+	Brain,
+	Clock,
+	Coffee,
+	ExternalLink,
 	Heart,
 	MoreHorizontal,
-	Clock,
-	TrendingUp,
 	Music,
-	Coffee,
+	Play,
+	Plus,
+	Search,
+	TrendingUp,
+	X,
 	Zap,
-	Brain,
-	ExternalLink,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { useWebSocket } from "@/components/WebSocketProvider";
+import { generateTrackId } from "@/lib/track-utils";
+import { cn } from "@/lib/utils";
 
 interface WebSocketCommand {
 	type: string;
@@ -114,13 +114,37 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const searchContainerRef = useRef<HTMLDivElement>(null);
 
-	// Initial search if initialQuery is provided
+	// Focus input on mount
 	useEffect(() => {
-		if (decodedQuery) {
-			setQuery(decodedQuery);
+		if (inputRef.current) {
+			inputRef.current.focus();
 		}
-	}, [decodedQuery]);
+	}, []);
+
+	// Click outside suggestions logic
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				searchContainerRef.current &&
+				!searchContainerRef.current.contains(event.target as Node)
+			) {
+				setShowSuggestions(false);
+			}
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+		};
+	}, []);
+
+	const [prevDecodedQuery, setPrevDecodedQuery] = useState(decodedQuery);
+	if (decodedQuery !== prevDecodedQuery) {
+		setPrevDecodedQuery(decodedQuery);
+		setQuery(decodedQuery);
+	}
 
 	// Debounced search effect
 	useEffect(() => {
@@ -190,8 +214,11 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 			}, 500);
 			return () => clearTimeout(timer);
 		} else {
-			setResults([]);
-			setError(null);
+			const timer = setTimeout(() => {
+				setResults((prev) => (prev.length > 0 ? [] : prev));
+				setError((prev) => (prev !== null ? null : prev));
+			}, 0);
+			return () => clearTimeout(timer);
 		}
 	}, [query]);
 
@@ -334,22 +361,29 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 		}
 	};
 
+	const handleTrackClick = (result: SearchResult) => {
+		const trackId = generateTrackId(result);
+		router.push(`/view/${trackId}`);
+	};
+
 	if (!connected) {
 		return (
-			<div className="flex flex-col items-center justify-center h-96 space-y-4">
-				<div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-					<Music className="w-8 h-8 text-muted-foreground" />
+			<div className="flex flex-col items-center justify-center bg-zinc-900 border border-zinc-800 rounded-lg p-10 max-w-md mx-auto space-y-6 my-12 animate-fade-in">
+				<div className="w-16 h-16 bg-zinc-950 rounded-lg flex items-center justify-center border border-zinc-800">
+					<Music className="w-8 h-8 text-primary" />
 				</div>
 				<div className="text-center space-y-2">
-					<h3 className="text-lg font-semibold">Not Connected</h3>
-					<p className="text-sm text-muted-foreground">
-						Connect to your music service to start searching
+					<h3 className="text-lg font-bold text-foreground">Not Connected</h3>
+					<p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+						Connect to your music service to start searching and playing tracks
+						on your bot.
 					</p>
 				</div>
 				<Button
 					onClick={() => {
 						router.push("/api/auth/login");
 					}}
+					className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg px-6 py-2"
 				>
 					Connect Now
 				</Button>
@@ -358,22 +392,26 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 	}
 
 	return (
-		<div className="space-y-6">
-			<Card>
-				<CardHeader>
-					<CardTitle>Search Results for &ldquo;{decodedQuery}&rdquo;</CardTitle>
+		<div className="space-y-6 animate-fade-in">
+			<Card className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-none">
+				<CardHeader className="border-b border-zinc-800 pb-4 mb-6">
+					<CardTitle className="text-2xl font-black tracking-tight text-foreground">
+						Search Results for &ldquo;{decodedQuery}&rdquo;
+					</CardTitle>
 				</CardHeader>
-				<CardContent>
+				<CardContent className="p-0">
 					{/* Search Header */}
 					<div className="space-y-4">
 						<div className="flex items-center justify-between">
-							<h1 className="text-3xl font-bold">Search</h1>
+							<h1 className="text-xl font-bold tracking-tight text-foreground">
+								Search
+							</h1>
 							{selectedCategory && (
 								<Button
 									variant="ghost"
 									size="sm"
 									onClick={() => setSelectedCategory(null)}
-									className="text-muted-foreground hover:text-foreground"
+									className="text-muted-foreground hover:text-foreground h-8 hover:bg-zinc-900 rounded-lg px-3"
 								>
 									<X className="w-4 h-4 mr-1" />
 									Clear Filter
@@ -382,23 +420,24 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 						</div>
 
 						{/* Search Bar */}
-						<div className="relative">
+						<div ref={searchContainerRef} className="relative">
 							<div className="relative">
-								<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+								<Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4.5 h-4.5" />
 								<Input
 									ref={inputRef}
+									autoFocus
 									placeholder="What do you want to listen to?"
 									value={query}
 									onChange={(e) => setQuery(e.target.value)}
 									onFocus={() => setShowSuggestions(true)}
-									className="pl-10 pr-10 h-12 text-base bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:bg-background"
+									className="pl-11 pr-11 h-11 text-base bg-zinc-950 border border-zinc-800 focus:border-primary focus:ring-primary text-foreground rounded-lg"
 								/>
 								{query && (
 									<Button
 										variant="ghost"
 										size="sm"
 										onClick={clearSearch}
-										className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
+										className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-zinc-900 rounded-lg"
 									>
 										<X className="w-4 h-4" />
 									</Button>
@@ -407,17 +446,19 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 
 							{/* Search Suggestions Dropdown */}
 							{showSuggestions && query.length === 0 && (
-								<Card className="absolute top-full left-0 right-0 mt-2 z-10 shadow-lg border-border/50">
+								<Card className="absolute top-full left-0 right-0 mt-1 z-30 border border-zinc-800/50 bg-zinc-950 rounded-lg shadow-none">
 									<CardContent className="p-4 space-y-3">
 										<div className="flex items-center justify-between">
-											<h4 className="text-sm font-medium">Recent searches</h4>
+											<h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+												Recent searches
+											</h4>
 											<Button
 												variant="ghost"
 												size="sm"
 												onClick={() => setShowSuggestions(false)}
-												className="h-6 w-6 p-0"
+												className="h-6 w-6 p-0 hover:bg-zinc-900 rounded-lg"
 											>
-												<X className="w-3 h-3" />
+												<X className="w-3.5 h-3.5" />
 											</Button>
 										</div>{" "}
 										<div className="space-y-1">
@@ -426,10 +467,10 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 													key={search}
 													variant="ghost"
 													onClick={() => handleSearch(search)}
-													className="flex items-center justify-start space-x-3 p-2 h-auto w-full hover:bg-muted rounded-md"
+													className="flex items-center justify-start space-x-3 px-3 py-2 h-10 w-full hover:bg-zinc-900/40 hover:text-primary transition-all rounded-lg text-left"
 												>
 													<Clock className="w-4 h-4 text-muted-foreground" />
-													<span className="text-sm">{search}</span>
+													<span className="text-sm font-medium">{search}</span>
 												</Button>
 											))}
 										</div>
@@ -440,17 +481,19 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 					</div>{" "}
 					{/* Browse Categories */}
 					{!query && !selectedCategory && (
-						<div className="space-y-4">
+						<div className="space-y-4 mt-8">
 							<div className="flex items-center justify-between">
-								<h2 className="text-xl font-semibold">Browse all</h2>
+								<h2 className="text-xl font-bold tracking-tight text-foreground">
+									Browse all
+								</h2>
 								<Button
 									variant="outline"
 									size="sm"
 									onClick={() => handlePlayDirect("trending popular music")}
 									disabled={!connected || !userContext.userId}
-									className="h-8"
+									className="h-9 border-zinc-800 text-foreground hover:bg-zinc-900 hover:text-primary px-4 font-bold rounded-lg"
 								>
-									<Play className="w-4 h-4 mr-1" />
+									<Play className="w-4 h-4 mr-1.5" fill="currentColor" />
 									Play Popular
 								</Button>
 							</div>
@@ -458,7 +501,7 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 								{searchCategories.map((category) => (
 									<Card
 										key={category.id}
-										className="relative overflow-hidden cursor-pointer group hover:scale-105 transition-all duration-200 border-0"
+										className="relative overflow-hidden cursor-pointer group border border-zinc-800/50 rounded-lg bg-zinc-900/20"
 									>
 										<div
 											className={cn(
@@ -467,18 +510,20 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 											)}
 										>
 											<div className="space-y-1">
-												<h3 className="font-bold text-lg">{category.name}</h3>
-												<p className="text-sm text-white/80">
+												<h3 className="font-extrabold text-lg tracking-tight">
+													{category.name}
+												</h3>
+												<p className="text-xs text-white/80 font-light">
 													{category.description}
 												</p>
 											</div>
-											<div className="absolute bottom-4 right-4 opacity-60 group-hover:opacity-100 transition-opacity">
+											<div className="absolute bottom-4 right-4 opacity-50 group-hover:opacity-90 transition-opacity">
 												{category.icon}
 											</div>
 											<div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
 
 											{/* Category Action Buttons */}
-											<div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+											<div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/35">
 												<div className="flex space-x-2">
 													<Button
 														size="sm"
@@ -487,9 +532,9 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 															e.stopPropagation();
 															handleCategoryClick(category.id);
 														}}
-														className="h-8 px-3 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border-white/30"
+														className="h-8 px-3 bg-white/20 text-white hover:bg-white/30 border-white/30 rounded-lg font-bold text-xs"
 													>
-														<Search className="w-3 h-3 mr-1" />
+														<Search className="w-3.5 h-3.5 mr-1" />
 														Browse
 													</Button>
 													<Button
@@ -501,9 +546,12 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 															);
 														}}
 														disabled={!connected || !userContext.userId}
-														className="h-8 px-3 bg-primary/80 backdrop-blur-sm text-white hover:bg-primary border-primary/30"
+														className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg font-bold text-xs"
 													>
-														<Play className="w-3 h-3 mr-1" />
+														<Play
+															className="w-3.5 h-3.5 mr-1"
+															fill="currentColor"
+														/>
 														Play
 													</Button>
 												</div>
@@ -516,119 +564,133 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 					)}
 					{/* Search Results */}
 					{(query || selectedCategory) && (
-						<div className="space-y-4">
+						<div className="space-y-4 mt-8">
 							{" "}
 							<div className="flex items-center justify-between">
-								<h2 className="text-xl font-semibold">
+								<h2 className="text-xl font-bold tracking-tight text-foreground">
 									{selectedCategory
 										? `${searchCategories.find((c) => c.id === selectedCategory)?.name} Music`
-										: `Results for "${query}"`}
+										: `Results`}
 								</h2>
-								<div className="flex items-center space-x-2">
+								<div className="flex items-center space-x-3">
 									{query && (
 										<Button
 											onClick={() => handlePlayDirect(query)}
-											className="h-8 px-3"
+											className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 rounded-lg transition-all"
 											disabled={!connected || !userContext.userId}
 										>
-											<Play className="w-4 h-4 mr-1" />
-											Play Now
+											<Play className="w-4 h-4 mr-1.5" fill="currentColor" />
+											Play All
 										</Button>
 									)}
 									{results.length > 0 && (
-										<Badge variant="secondary" className="text-xs">
+										<Badge
+											variant="secondary"
+											className="text-xs font-semibold bg-zinc-950 border border-zinc-800 text-foreground px-3 py-1 rounded-lg"
+										>
 											{results.length} result{results.length !== 1 ? "s" : ""}
 										</Badge>
 									)}
 								</div>
 							</div>
-							{/* Loading State */}
 							{isLoading && (
-								<div className="space-y-3">
-									{Array.from({ length: 3 }, (_, i) => (
+								<div className="space-y-2">
+									{[
+										"search-skel-0",
+										"search-skel-1",
+										"search-skel-2",
+										"search-skel-3",
+									].map((id) => (
 										<div
-											key={`skeleton-loading-${Date.now()}-${i}`}
-											className="flex items-center space-x-3 p-3"
+											key={id}
+											className="flex items-center space-x-3 p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg animate-pulse"
 										>
-											<Skeleton className="h-12 w-12 rounded-md" />
+											<div className="h-10 w-10 bg-zinc-900 rounded-lg" />
 											<div className="flex-1 space-y-2">
-												<Skeleton className="h-4 w-32" />
-												<Skeleton className="h-3 w-24" />
+												<div className="h-4 bg-zinc-900 rounded w-1/4" />
+												<div className="h-3 bg-zinc-900 rounded w-1/6" />
 											</div>
-											<Skeleton className="h-8 w-16" />
+											<div className="h-8 w-16 bg-zinc-900 rounded-lg" />
 										</div>
 									))}
 								</div>
 							)}
 							{/* Error State */}
 							{error && !isLoading && (
-								<div className="flex flex-col items-center justify-center h-32 space-y-4">
-									<div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center">
-										<X className="w-6 h-6 text-destructive" />
+								<div className="flex flex-col items-center justify-center p-12 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg space-y-3">
+									<div className="w-12 h-12 bg-rose-500/20 rounded-lg flex items-center justify-center border border-rose-500/30">
+										<X className="w-6 h-6 text-rose-400" />
 									</div>
-									<div className="text-center space-y-2">
-										<h3 className="text-sm font-semibold text-destructive">
-											Search Error
-										</h3>
+									<div className="text-center space-y-1">
+										<h3 className="font-bold">Search Error</h3>
 										<p className="text-xs text-muted-foreground">{error}</p>
 									</div>
 								</div>
 							)}
 							{/* Results List */}
 							{!isLoading && results.length > 0 && (
-								<ScrollArea className="h-96">
-									<div className="space-y-1">
+								<ScrollArea className="h-[480px]">
+									<div className="space-y-2 pr-3">
 										{results.map((result, index) => (
 											<div
 												key={result.id}
-												className="group flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-lg transition-colors"
+												className="group flex items-center space-x-4 p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg hover:bg-zinc-900 transition-all duration-150"
 											>
 												{/* Track Number / Play Button */}
-												<div className="w-6 flex-shrink-0 text-right">
-													<span className="text-sm text-muted-foreground group-hover:hidden">
+												<div className="w-6 flex-shrink-0 text-center flex items-center justify-center">
+													<span className="text-xs font-mono text-muted-foreground group-hover:hidden">
 														{index + 1}
 													</span>
 													<Button
 														variant="ghost"
 														size="sm"
 														onClick={() => handlePlay(result)}
-														className="hidden group-hover:flex h-6 w-6 p-0 hover:bg-primary hover:text-primary-foreground"
+														className="hidden group-hover:flex h-6 w-6 p-0 bg-primary text-zinc-950 hover:bg-primary/90 rounded-lg flex-shrink-0 justify-center items-center"
 													>
-														<Play className="w-3 h-3" />
+														<Play
+															className="w-3 h-3 ml-0.5"
+															fill="currentColor"
+														/>
 													</Button>
 												</div>
 												{/* Artwork */}
 												<div className="relative flex-shrink-0">
-													<Avatar className="h-12 w-12 rounded-md">
+													<Avatar className="h-10 w-10 rounded-lg border border-zinc-800 overflow-hidden">
 														<AvatarImage
 															src={result.artwork}
 															alt={result.title}
+															className="object-cover"
 														/>
-														<AvatarFallback className="rounded-md">
-															<Music className="w-5 h-5" />
+														<AvatarFallback className="rounded-lg bg-zinc-900 flex items-center justify-center">
+															<Music className="w-5 h-5 text-primary" />
 														</AvatarFallback>
 													</Avatar>
 													{result.type === "playlist" && (
-														<div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
+														<div className="absolute -bottom-1 -right-1 bg-primary text-zinc-950 rounded-lg p-1 border border-zinc-900">
 															<Music className="w-2 h-2" />
 														</div>
 													)}
 												</div>
 												{/* Track Info */}
-												<div className="flex-1 min-w-0">
-													<div className="flex items-center space-x-2 mb-1">
-														<p className="font-medium text-foreground truncate">
+												<button
+													type="button"
+													className="flex-1 min-w-0 cursor-pointer text-left focus:outline-none"
+													onClick={() => handleTrackClick(result)}
+													aria-label={`View details for ${result.title} by ${result.artist}`}
+												>
+													<div className="flex items-center space-x-2 mb-0.5">
+														<p className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
 															{result.title}
 														</p>
 														{result.isPlaying && (
-															<div className="flex space-x-0.5">
-																<div className="w-1 h-3 bg-primary rounded-full animate-pulse" />
-																<div className="w-1 h-3 bg-primary rounded-full animate-pulse delay-100" />
-																<div className="w-1 h-3 bg-primary rounded-full animate-pulse delay-200" />
+															<div className="flex space-x-0.5 items-end h-3">
+																<div className="w-0.5 h-2 bg-primary rounded-full animate-pulse" />
+																<div className="w-0.5 h-3 bg-primary rounded-full animate-pulse delay-100" />
+																<div className="w-0.5 h-1 bg-primary rounded-full animate-pulse delay-200" />
 															</div>
 														)}
 													</div>
-													<div className="flex items-center space-x-1 text-sm text-muted-foreground">
+													<div className="flex items-center space-x-1 text-xs text-muted-foreground font-light">
 														<span>{result.artist}</span>
 														{result.album && (
 															<>
@@ -637,36 +699,34 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 															</>
 														)}
 													</div>
-												</div>
+												</button>
 												{/* Duration */}
-												<div className="flex-shrink-0 text-sm text-muted-foreground">
+												<div className="flex-shrink-0 text-xs font-mono text-muted-foreground">
 													{result.duration}
 												</div>{" "}
 												{/* Actions */}
 												<div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
 													<Button
-														variant={
-															likedIds.has(result.id) ? "secondary" : "ghost"
-														}
+														variant="ghost"
 														size="sm"
 														onClick={() => handleLike(result)}
-														className="h-8 w-8 p-0 hover:bg-muted"
+														className="h-8 w-8 p-0 rounded-lg hover:bg-zinc-900 text-muted-foreground hover:text-foreground"
 														disabled={likeLoading === result.id}
 													>
 														<Heart
-															className={
-																"w-4 h-4 transition-colors " +
-																(likedIds.has(result.id)
-																	? "text-primary fill-primary"
-																	: "")
-															}
+															className={cn(
+																"w-4 h-4 transition-colors",
+																likedIds.has(result.id)
+																	? "text-rose-500 fill-rose-500"
+																	: "text-muted-foreground hover:text-foreground",
+															)}
 														/>
 													</Button>
 													<Button
 														variant="ghost"
 														size="sm"
 														onClick={() => handleAddToPlaylist(result)}
-														className="h-8 w-8 p-0 hover:bg-muted"
+														className="h-8 w-8 p-0 rounded-lg hover:bg-zinc-900 text-muted-foreground hover:text-foreground"
 													>
 														<Plus className="w-4 h-4" />
 													</Button>
@@ -675,7 +735,7 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 															variant="ghost"
 															size="sm"
 															onClick={() => handleOpenInBrowser(result)}
-															className="h-8 w-8 p-0 hover:bg-muted"
+															className="h-8 w-8 p-0 rounded-lg hover:bg-zinc-900 text-muted-foreground hover:text-foreground"
 															title="Open in browser"
 														>
 															<ExternalLink className="w-4 h-4" />
@@ -684,7 +744,7 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 													<Button
 														variant="ghost"
 														size="sm"
-														className="h-8 w-8 p-0 hover:bg-muted"
+														className="h-8 w-8 p-0 rounded-lg hover:bg-zinc-900 text-muted-foreground hover:text-foreground"
 													>
 														<MoreHorizontal className="w-4 h-4" />
 													</Button>
@@ -696,14 +756,16 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 							)}
 							{/* No Results */}
 							{!isLoading && results.length === 0 && query && (
-								<div className="flex flex-col items-center justify-center h-64 space-y-4">
-									<div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-										<Search className="w-8 h-8 text-muted-foreground" />
+								<div className="flex flex-col items-center justify-center p-12 bg-zinc-950 border border-zinc-800 text-muted-foreground rounded-lg space-y-4">
+									<div className="w-16 h-16 bg-zinc-900 rounded-lg flex items-center justify-center border border-zinc-800">
+										<Search className="w-8 h-8 text-muted-foreground/60" />
 									</div>
-									<div className="text-center space-y-2">
-										<h3 className="text-lg font-semibold">No results found</h3>
-										<p className="text-sm text-muted-foreground">
-											Try searching for something else or check your spelling
+									<div className="text-center space-y-1">
+										<h3 className="text-base font-bold text-foreground">
+											No results found
+										</h3>
+										<p className="text-xs text-muted-foreground">
+											Try searching for something else or check your spelling.
 										</p>
 									</div>
 								</div>

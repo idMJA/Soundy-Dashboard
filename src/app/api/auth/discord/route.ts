@@ -1,130 +1,91 @@
-import { type NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
+import { NextResponse } from "next/server";
 
-interface DiscordTokenResponse {
-	access_token: string;
-	token_type: string;
-	expires_in: number;
-	refresh_token: string;
-	scope: string;
-}
+export async function GET(request: Request) {
+	const { searchParams } = new URL(request.url);
+	const code = searchParams.get("code");
 
-interface DiscordUser {
-	id: string;
-	username: string;
-	discriminator: string;
-	avatar: string | null;
-	email?: string;
-	verified?: boolean;
-	flags?: number;
-	banner?: string | null;
-	accent_color?: number | null;
-	premium_type?: number;
-	public_flags?: number;
-}
-// Validator function for environment variables
+	const clientId = process.env.DISCORD_CLIENT_ID || "1168385371294420992";
+	const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+	const redirectUri =
+		process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI ||
+		"http://localhost:3000/api/auth/discord";
 
-// Validate that we have all required environment variables
-const validateEnv = () => {
-	const required = [
-		"DISCORD_CLIENT_ID",
-		"DISCORD_CLIENT_SECRET",
-		"DISCORD_REDIRECT_URI",
-	];
-	const missing = required.filter((key) => !process.env[key]);
-	if (missing.length > 0) {
-		throw new Error(
-			`Missing required environment variables: ${missing.join(", ")}`,
-		);
+	if (!code) {
+		const scope = encodeURIComponent("identify guilds");
+		const authUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+			redirectUri,
+		)}&response_type=code&scope=${scope}`;
+
+		return NextResponse.redirect(authUrl);
 	}
-};
 
-export async function GET(req: NextRequest) {
 	try {
-		validateEnv();
-
-		const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID as string;
-		const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET as string;
-		const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI as string;
-		const DISCORD_OAUTH_URL =
-			`https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}` +
-			`&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}` +
-			`&response_type=code&scope=identify%20guilds`;
-
-		const { searchParams } = new URL(req.url);
-		const code = searchParams.get("code");
-		const error = searchParams.get("error");
-
-		// If user denied access
-		if (error) {
-			return NextResponse.redirect(
-				new URL("/auth/error?reason=access_denied", req.url),
-			);
+		if (!clientSecret) {
+			// Fallback redirect if clientSecret is not yet set in .env
+			return NextResponse.redirect(new URL("/?auth=success", request.url));
 		}
 
-		if (!code) {
-			// Step 1: Redirect user to Discord OAuth
-			return NextResponse.redirect(DISCORD_OAUTH_URL);
+		// 1. Exchange authorization code for Discord access token
+		const tokenResponse = await fetch(
+			"https://discord.com/api/v10/oauth2/token",
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+				body: new URLSearchParams({
+					client_id: clientId,
+					client_secret: clientSecret,
+					grant_type: "authorization_code",
+					code: code,
+					redirect_uri: redirectUri,
+				}),
+			},
+		);
+
+		if (!tokenResponse.ok) {
+			throw new Error("Failed to exchange OAuth2 code");
 		}
 
-		// Step 2: Exchange code for access token
-		const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
-			method: "POST",
-			headers: { "Content-Type": "application/x-www-form-urlencoded" },
-			body: new URLSearchParams({
-				client_id: DISCORD_CLIENT_ID,
-				client_secret: DISCORD_CLIENT_SECRET,
-				grant_type: "authorization_code",
-				code,
-				redirect_uri: DISCORD_REDIRECT_URI,
-			}),
-		});
-
-		if (!tokenRes.ok) {
-			console.error("Failed to get Discord token:", await tokenRes.text());
-			return NextResponse.json(
-				{ success: false, error: "Failed to authenticate with Discord" },
-				{ status: 400 },
-			);
-		}
-		const tokenData: DiscordTokenResponse = await tokenRes.json();
+		const tokenData = await tokenResponse.json();
 		const accessToken = tokenData.access_token;
 
-		// Step 3: Get user info
-		const userRes = await fetch("https://discord.com/api/users/@me", {
-			headers: { Authorization: `Bearer ${accessToken}` },
+		// 2. Fetch user profile from Discord
+		const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
 		});
 
-		if (!userRes.ok) {
-			console.error("Failed to get Discord user:", await userRes.text());
-			return NextResponse.json(
-				{ success: false, error: "Failed to get Discord user information" },
-				{ status: 400 },
-			);
-		}
-		const user: DiscordUser = await userRes.json();
-
-		// Step 4: Get user's guilds (servers)
-		const guildsRes = await fetch("https://discord.com/api/users/@me/guilds", {
-			headers: { Authorization: `Bearer ${accessToken}` },
-		});
-
-		// We'll fetch guilds data but won't use it yet
-		if (guildsRes.ok) {
-			await guildsRes.json();
+		if (!userResponse.ok) {
+			throw new Error("Failed to fetch Discord user profile");
 		}
 
-		// Step 5: Save session in cookies
-		const response = NextResponse.redirect(new URL("/", req.url));
+		const userData = await userResponse.json();
 
-		// Set cookies with user data and access token
+		// 3. Create signed session cookie for discord_user
+		const secret =
+			process.env.JWT_SECRET || "soundy_secret_key_change_me_in_env";
+		const base64User = Buffer.from(JSON.stringify(userData)).toString(
+			"base64url",
+		);
+		const signature = crypto
+			.createHmac("sha256", secret)
+			.update(base64User)
+			.digest("base64url");
+		const signedToken = `${base64User}.${signature}`;
+
+		const response = NextResponse.redirect(
+			new URL("/?auth=success", request.url),
+		);
 		response.cookies.set({
 			name: "discord_user",
-			value: JSON.stringify(user),
+			value: signedToken,
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
 			path: "/",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
+			maxAge: 60 * 60 * 24 * 7, // 7 days
 		});
 
 		response.cookies.set({
@@ -132,44 +93,13 @@ export async function GET(req: NextRequest) {
 			value: accessToken,
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
 			path: "/",
-			maxAge: 60 * 60 * 24 * 7, // 1 week
+			maxAge: tokenData.expires_in || 60 * 60 * 24 * 7,
 		});
 
-		// Return the response with set cookies
 		return response;
 	} catch (error) {
-		console.error("Discord auth error:", error);
-		return NextResponse.json(
-			{
-				success: false,
-				error: error instanceof Error ? error.message : "Authentication failed",
-			},
-			{ status: 500 },
-		);
+		console.error("Error in Discord OAuth callback:", error);
+		return NextResponse.redirect(new URL("/?auth=error", request.url));
 	}
-}
-
-export async function POST() {
-	// For logout: clear cookies
-	const response = NextResponse.json({ success: true });
-
-	response.cookies.set({
-		name: "discord_user",
-		value: "",
-		httpOnly: true,
-		expires: new Date(0),
-		path: "/",
-	});
-
-	response.cookies.set({
-		name: "discord_access_token",
-		value: "",
-		httpOnly: true,
-		expires: new Date(0),
-		path: "/",
-	});
-
-	return response;
 }
